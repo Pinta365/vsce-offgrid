@@ -8,6 +8,9 @@ import * as net from "net";
 import * as path from "path";
 import { Models } from "./models";
 
+/** The offgrid release whose server the extension's flags need (package.json `offgridServer`). */
+const OFFGRID_VERSION: string = require("../package.json").offgridServer;
+
 /** Model ids the server reports; fixed so requests don't depend on file names. */
 export const COMPLETION_ID = "offgrid-completion";
 export const CHAT_ID = "offgrid-chat";
@@ -249,7 +252,11 @@ export class Server implements vscode.Disposable {
                         this.set({ kind: "stopped" });
                     }
                 }
-                reject(new Error(`offgrid-server exited (${signal ?? code}):\n${recent.slice(-5).join("\n")}`));
+                const tooOld = recent.some((l) => l.includes("unexpected argument"));
+                const why = tooOld
+                    ? `${launch.binary} is too old for this extension (it needs offgrid ${OFFGRID_VERSION} or newer)`
+                    : `offgrid-server exited (${signal ?? code}): ${recent.slice(-3).join(" ")}`;
+                reject(new Error(why));
             });
         });
         exited.catch(() => undefined); // only observed while waiting below

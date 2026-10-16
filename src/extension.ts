@@ -43,7 +43,12 @@ export function activate(context: vscode.ExtensionContext) {
         server,
         item,
         completion,
-        server.onDidChangeState((s) => render(s)),
+        server.onDidChangeState((s) => {
+            render(s);
+            if (s.kind === "error") {
+                void showError(s.message);
+            }
+        }),
         vscode.languages.registerInlineCompletionItemProvider({ pattern: "**" }, completion),
         vscode.lm.registerLanguageModelChatProvider("offgrid", chat),
         vscode.commands.registerCommand("offgrid.setup", () => setup(models, server, chat)),
@@ -84,6 +89,15 @@ function describe(state: State): [string, string] {
         }
         case "error":
             return ["$(error)", `offgrid: ${state.message}`];
+    }
+}
+
+async function showError(message: string) {
+    const pick = await vscode.window.showErrorMessage(`offgrid: ${message}`, "Show Log", "Open Settings");
+    if (pick === "Show Log") {
+        await vscode.commands.executeCommand("offgrid.showLog");
+    } else if (pick === "Open Settings") {
+        await vscode.commands.executeCommand("workbench.action.openSettings", "offgrid");
     }
 }
 
