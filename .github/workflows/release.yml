@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux-x64, win32-x64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch offgrid-server
+        run: node scripts/fetch-server.mjs --target ${{ matrix.target }}
+
+      - name: Package extension
+        run: npx vsce package --target ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.target }}
+          path: "*.vsix"
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          CURRENT_TAG=${{ github.ref_name }}
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1)
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s" "$CURRENT_TAG")
+          else
+            COMMITS=$(git log --pretty=format:"- %s" "${PREV_TAG}..${CURRENT_TAG}")
+          fi
+          {
+            echo "commits<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload .vsix files to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.vsix"
+          body: ${{ steps.notes.outputs.commits }}
+
+      - name: Publish to VS Code Marketplace
+        run: npx --yes @vscode/vsce publish --packagePath *.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

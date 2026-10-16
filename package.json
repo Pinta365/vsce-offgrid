@@ -1,0 +1,135 @@
+{
+  "name": "offgrid",
+  "displayName": "offgrid: local AI",
+  "description": "Code completion and chat with local models. No account, no cloud: offgrid runs the models on your GPU or CPU.",
+  "publisher": "Pinta365",
+  "version": "0.0.1",
+  "offgridServer": "0.4.0",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pinta365/vsce-offgrid.git"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "offline",
+    "local",
+    "llm",
+    "autocomplete",
+    "fim"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "offgrid",
+        "displayName": "offgrid (local)",
+        "managementCommand": "offgrid.setup"
+      }
+    ],
+    "commands": [
+      {
+        "command": "offgrid.setup",
+        "title": "offgrid: Set Up Models"
+      },
+      {
+        "command": "offgrid.restart",
+        "title": "offgrid: Restart Server"
+      },
+      {
+        "command": "offgrid.showLog",
+        "title": "offgrid: Show Log"
+      },
+      {
+        "command": "offgrid.toggleCompletions",
+        "title": "offgrid: Toggle Code Completion"
+      },
+      {
+        "command": "offgrid.menu",
+        "title": "offgrid: Menu"
+      }
+    ],
+    "configuration": {
+      "title": "offgrid",
+      "properties": {
+        "offgrid.completion.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Suggest code as you type (inline ghost text)."
+        },
+        "offgrid.completion.model": {
+          "type": "string",
+          "default": "",
+          "description": "Code model (GGUF with fill-in-the-middle tokens) for completion. Empty: Qwen2.5-Coder 1.5B, downloaded on first use."
+        },
+        "offgrid.completion.debounceMs": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "description": "Wait this long after a keystroke before asking for a completion."
+        },
+        "offgrid.completion.maxTokens": {
+          "type": "number",
+          "default": 128,
+          "minimum": 1,
+          "description": "Longest completion, in tokens."
+        },
+        "offgrid.completion.timeLimitMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 0,
+          "description": "After this much generation time, end the completion at the next line break. 0: no limit."
+        },
+        "offgrid.chat.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Offer a local chat model in the Chat view's model picker. Loading it needs about 3 GB more memory."
+        },
+        "offgrid.chat.model": {
+          "type": "string",
+          "default": "",
+          "description": "Chat model (GGUF). Empty: Qwen3 4B Instruct, downloaded on first use."
+        },
+        "offgrid.contextSize": {
+          "type": "number",
+          "default": 16384,
+          "minimum": 0,
+          "description": "Context size in tokens for each model. Larger fits longer chats but needs more GPU memory. 0: the model's default, at most 8192."
+        },
+        "offgrid.gpu": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run models on the GPU (Vulkan). Off: CPU only."
+        },
+        "offgrid.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Use this offgrid-server binary instead of the bundled one."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "fetch-server": "node scripts/fetch-server.mjs",
+    "release": "node scripts/release.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.104.0",
+    "@vscode/vsce": "^3.7.1",
+    "typescript": "^5.9.3"
+  }
+}
