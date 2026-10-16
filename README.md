@@ -36,10 +36,19 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 | `offgrid.chat.enabled` | `true` | Load the chat model (about 3 GB more memory) |
 | `offgrid.chat.model` | | A chat model (GGUF); empty: Qwen3 4B Instruct |
 | `offgrid.chat.contextSize` | `32768` | Chat context in tokens; Agent mode's instructions and tools need about 20k |
+| `offgrid.chat.expertLayersOnCpu` | `0` | For MoE chat models larger than the GPU: run this many layers' experts on the CPU |
 | `offgrid.cacheType` | `q8_0` | Context storage: `q8_0` (half the memory of `f16`), `f16` or `q4_0` |
 | `offgrid.completion.contextSize` | `8192` | Code model context in tokens |
 | `offgrid.gpu` | `true` | Off: run on the CPU only |
 | `offgrid.serverPath` | | Use your own offgrid-server build |
+
+## Bigger models
+
+Any GGUF chat model works (**offgrid: Set Up Models** → *Use a GGUF file for chat*). On a 16 GB GPU,
+**Qwen3-Coder-30B-A3B-Instruct** (Q4_K_M, 18.6 GB) is much better than the default in Agent mode.
+It doesn't fit the GPU, but as a Mixture-of-Experts model it can keep part of its expert weights in
+RAM: set `offgrid.chat.expertLayersOnCpu` to `24`. On an RX 9070 XT that runs at about 35 tokens/s
+with a 32k context.
 
 ## Requirements
 

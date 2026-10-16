@@ -176,6 +176,12 @@ export class Server implements vscode.Disposable {
         if (!cfg.get<boolean>("gpu", true)) {
             args.push("--gpu-layers", "none");
         }
+        const expertLayers = cfg.get<number>("chat.expertLayersOnCpu", 0);
+        if (chat && expertLayers > 0) {
+            // Expert weights are copied to the GPU once per prompt batch: larger batches are
+            // much faster (~2.4x for Qwen3-Coder-30B-A3B at 2048).
+            args.push("--n-cpu-moe", String(expertLayers), "--batch", "2048");
+        }
         return {
             launch: { binary, args },
             endpoint: { completion: !!completion, chat: !!chat, contextSize: contextSize || 8192 },

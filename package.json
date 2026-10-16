@@ -116,6 +116,12 @@
           "minimum": 0,
           "description": "Context size in tokens for the chat model. Agent mode sends about 20k tokens of instructions and tools, so it needs 32768. Larger needs more GPU memory. 0: the model's default, at most 8192."
         },
+        "offgrid.chat.expertLayersOnCpu": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "markdownDescription": "For Mixture-of-Experts chat models too large for the GPU (e.g. Qwen3-Coder-30B-A3B): keep the expert weights of this many layers in RAM and run them on the CPU, while attention stays on the GPU. Raise it until the model loads; on a 16 GB GPU, 24 works for Qwen3-Coder-30B-A3B. 0: off."
+        },
         "offgrid.cacheType": {
           "type": "string",
           "enum": [
