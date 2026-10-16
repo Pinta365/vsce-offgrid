@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { ChildProcess, spawn } from "child_process";
 import { randomBytes } from "crypto";
 import { existsSync } from "fs";
-import { access, chmod, mkdir, readFile, writeFile } from "fs/promises";
+import { access, chmod, mkdir, readFile, rm, writeFile } from "fs/promises";
 import { constants } from "fs";
 import * as net from "net";
 import * as path from "path";
@@ -102,6 +102,14 @@ export class Server implements vscode.Disposable {
             this.child = undefined;
             this.set({ kind: "stopped" });
         }
+    }
+
+    /** Stop this window's server and forget the shared one (for a reset). */
+    async stop() {
+        await this.starting?.catch(() => undefined);
+        this.stopOwn();
+        await rm(this.sharedFile, { force: true });
+        this.set({ kind: "stopped" });
     }
 
     async restart(): Promise<Endpoint | undefined> {

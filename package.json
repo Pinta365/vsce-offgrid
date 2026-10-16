@@ -61,6 +61,10 @@
       {
         "command": "offgrid.menu",
         "title": "offgrid: Menu"
+      },
+      {
+        "command": "offgrid.reset",
+        "title": "offgrid: Reset"
       }
     ],
     "configuration": {

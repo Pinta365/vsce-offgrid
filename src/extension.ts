@@ -6,6 +6,9 @@ import * as path from "path";
 import { CHAT_MODEL, CHAT_MODELS, COMPLETION_MODEL, KnownModel, Models, Role } from "./models";
 import { GPU_MEMORY_KEY, Server, State } from "./server";
 
+/** globalState key: the user chose "Not Now" in the first-run prompt. */
+const SETUP_DISMISSED_KEY = "setupDismissed";
+
 /** Settings that change what the server loads. */
 const LAUNCH_SETTINGS = [
     "offgrid.completion.model",
@@ -68,6 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
             await cfg.update("completion.enabled", !cfg.get<boolean>("completion.enabled", true), vscode.ConfigurationTarget.Global);
         }),
         vscode.commands.registerCommand("offgrid.menu", () => menu(server)),
+        vscode.commands.registerCommand("offgrid.reset", () => reset(context, models, server, chat)),
         vscode.commands.registerCommand("offgrid.settings", () =>
             vscode.commands.executeCommand("workbench.action.openSettings", `@ext:${context.extension.id}`),
         ),
@@ -122,7 +126,7 @@ async function firstRun(context: vscode.ExtensionContext, models: Models, server
         await server.ensure();
         return;
     }
-    if (context.globalState.get<boolean>("setupDismissed")) {
+    if (context.globalState.get<boolean>(SETUP_DISMISSED_KEY)) {
         await server.ensure(); // shows "set up" in the status bar
         return;
     }
@@ -134,7 +138,7 @@ async function firstRun(context: vscode.ExtensionContext, models: Models, server
     if (pick === "Set Up") {
         await setup(context, models, server, chat);
     } else {
-        await context.globalState.update("setupDismissed", true);
+        await context.globalState.update(SETUP_DISMISSED_KEY, true);
         await server.ensure();
     }
 }
@@ -275,6 +279,48 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
     await pick?.action?.();
 }
 
+/** Back to a fresh install: settings, remembered state, and optionally the downloaded models. */
+async function reset(context: vscode.ExtensionContext, models: Models, server: Server, chat: ChatProvider) {
+    const bytes = await models.downloadedBytes();
+    const choices = bytes > 0 ? ["Reset Settings", "Reset and Delete Models"] : ["Reset Settings"];
+    const pick = await vscode.window.showWarningMessage(
+        "Reset offgrid to a fresh install?",
+        {
+            modal: true,
+            detail:
+                "This removes all offgrid settings (user and workspace) and what the extension remembers, and stops its server." +
+                (bytes > 0 ? ` Downloaded models (${(bytes / 2 ** 30).toFixed(1)} GB) are kept unless you also delete them.` : ""),
+        },
+        ...choices,
+    );
+    if (!pick) {
+        return;
+    }
+    await server.stop();
+    const cfg = vscode.workspace.getConfiguration("offgrid");
+    const keys = Object.keys(context.extension.packageJSON.contributes.configuration.properties as object).map((k) =>
+        k.replace(/^offgrid\./, ""),
+    );
+    for (const key of keys) {
+        const set = cfg.inspect(key);
+        if (set?.globalValue !== undefined) {
+            await cfg.update(key, undefined, vscode.ConfigurationTarget.Global);
+        }
+        if (set?.workspaceValue !== undefined) {
+            await cfg.update(key, undefined, vscode.ConfigurationTarget.Workspace);
+        }
+    }
+    for (const key of context.globalState.keys()) {
+        await context.globalState.update(key, undefined);
+    }
+    if (pick === "Reset and Delete Models") {
+        await models.deleteDownloads();
+    }
+    chat.refresh();
+    void vscode.window.showInformationMessage("offgrid was reset.");
+    await firstRun(context, models, server, chat);
+}
+
 async function menu(server: Server) {
     const completion = vscode.workspace.getConfiguration("offgrid").get<boolean>("completion.enabled", true);
     const items: (vscode.QuickPickItem & { command: string })[] = [
@@ -283,6 +329,7 @@ async function menu(server: Server) {
         { label: "$(gear) Settings…", command: "offgrid.settings" },
         { label: "$(debug-restart) Restart server", command: "offgrid.restart" },
         { label: "$(output) Show log", command: "offgrid.showLog" },
+        { label: "$(discard) Reset…", command: "offgrid.reset" },
     ];
     const [, tip] = describe(server.state);
     const pick = await vscode.window.showQuickPick(items, { title: tip });

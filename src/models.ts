@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { createHash } from "crypto";
 import { createWriteStream, existsSync } from "fs";
-import { mkdir, rename, rm, stat } from "fs/promises";
+import { mkdir, readdir, rename, rm, stat } from "fs/promises";
 import * as path from "path";
 
 /** A model the extension can download, pinned by size and SHA-256. */
@@ -93,6 +93,21 @@ export class Models {
 
     known(role: Role): KnownModel {
         return KNOWN[role];
+    }
+
+    /** Bytes of downloaded models (and unfinished downloads). */
+    async downloadedBytes(): Promise<number> {
+        try {
+            const files = await readdir(this.dir);
+            const sizes = await Promise.all(files.map((f) => stat(path.join(this.dir, f)).then((s) => s.size)));
+            return sizes.reduce((a, b) => a + b, 0);
+        } catch {
+            return 0;
+        }
+    }
+
+    async deleteDownloads() {
+        await rm(this.dir, { recursive: true, force: true });
     }
 
     /** Where `model` is (or would be) downloaded. */
