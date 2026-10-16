@@ -156,10 +156,11 @@ export class Server implements vscode.Disposable {
         if (!completion && !chat) {
             return { setup: "no model downloaded yet: run “offgrid: Set Up Models”" };
         }
-        const contextSize = cfg.get<number>("chat.contextSize", 16384);
+        const contextSize = cfg.get<number>("chat.contextSize", 32768);
         const completionContext = cfg.get<number>("completion.contextSize", 8192);
         // --exit-on-stdin-close: the server exits with this extension host, even if it crashes.
         const args = ["--host", "127.0.0.1", "--cache-reuse", "256", "--exit-on-stdin-close"];
+        args.push("--cache-type", cfg.get<string>("cacheType", "q8_0"));
         if (completion) {
             args.push("--fim-model", completion, "--fim-alias", COMPLETION_ID);
         }

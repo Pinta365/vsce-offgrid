@@ -35,7 +35,8 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 | `offgrid.completion.model` | | A code model (GGUF with FIM tokens); empty: Qwen2.5-Coder 1.5B |
 | `offgrid.chat.enabled` | `true` | Load the chat model (about 3 GB more memory) |
 | `offgrid.chat.model` | | A chat model (GGUF); empty: Qwen3 4B Instruct |
-| `offgrid.chat.contextSize` | `16384` | Chat context in tokens; larger fits longer chats and Agent mode's tools but needs more GPU memory |
+| `offgrid.chat.contextSize` | `32768` | Chat context in tokens; Agent mode's instructions and tools need about 20k |
+| `offgrid.cacheType` | `q8_0` | Context storage: `q8_0` (half the memory of `f16`), `f16` or `q4_0` |
 | `offgrid.completion.contextSize` | `8192` | Code model context in tokens |
 | `offgrid.gpu` | `true` | Off: run on the CPU only |
 | `offgrid.serverPath` | | Use your own offgrid-server build |
@@ -43,7 +44,8 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 ## Requirements
 
 - Linux x86_64 (glibc 2.28+) or Windows x86_64
-- About 4 GB of free GPU memory for both models, or a recent CPU (slower)
+- About 7 GB of free GPU memory for both models at the default context sizes, or a recent CPU
+  (slower). Lower `offgrid.chat.contextSize` for smaller GPUs; Ask mode works with 8192.
 
 ## Known limitations
 

@@ -112,9 +112,24 @@
         },
         "offgrid.chat.contextSize": {
           "type": "number",
-          "default": 16384,
+          "default": 32768,
           "minimum": 0,
-          "description": "Context size in tokens for the chat model. Larger fits longer chats and more tools (Agent mode) but needs more GPU memory. 0: the model's default, at most 8192."
+          "description": "Context size in tokens for the chat model. Agent mode sends about 20k tokens of instructions and tools, so it needs 32768. Larger needs more GPU memory. 0: the model's default, at most 8192."
+        },
+        "offgrid.cacheType": {
+          "type": "string",
+          "enum": [
+            "q8_0",
+            "f16",
+            "q4_0"
+          ],
+          "default": "q8_0",
+          "enumDescriptions": [
+            "8-bit: half the memory of f16, about the same output, a little slower",
+            "16-bit: the most memory, the fastest",
+            "4-bit: a quarter of the memory; output changes"
+          ],
+          "description": "How the models store their context (KV cache). With q8_0, a 32k chat context for Qwen3 4B needs about 2.4 GB."
         },
         "offgrid.gpu": {
           "type": "boolean",

@@ -11,6 +11,7 @@ const LAUNCH_SETTINGS = [
     "offgrid.chat.model",
     "offgrid.chat.contextSize",
     "offgrid.completion.contextSize",
+    "offgrid.cacheType",
     "offgrid.gpu",
     "offgrid.serverPath",
 ];
