@@ -7,8 +7,9 @@ import * as path from "path";
 /** A model the extension can download, pinned by size and SHA-256. */
 export interface KnownModel {
     label: string;
-    /** Name in the chat model picker. */
+    /** Name in the chat model picker and setup list. */
     short: string;
+    quant: string;
     file: string;
     url: string;
     size: number;
@@ -27,6 +28,7 @@ export interface KnownModel {
 export const COMPLETION_MODEL: KnownModel = {
     label: "Qwen2.5-Coder 1.5B (Q8_0)",
     short: "Qwen2.5-Coder 1.5B",
+    quant: "Q8_0",
     file: "qwen2.5-coder-1.5b-q8_0.gguf",
     url: "https://huggingface.co/ggml-org/Qwen2.5-Coder-1.5B-Q8_0-GGUF/resolve/main/qwen2.5-coder-1.5b-q8_0.gguf",
     size: 1646573056,
@@ -36,6 +38,7 @@ export const COMPLETION_MODEL: KnownModel = {
 export const CHAT_MODEL: KnownModel = {
     label: "Qwen3 4B Instruct 2507 (Q4_K_M)",
     short: "Qwen3 4B",
+    quant: "Q4_K_M",
     file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
     url: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
     size: 2497281120,
@@ -46,6 +49,7 @@ export const CHAT_MODEL: KnownModel = {
 export const LARGE_CHAT_MODEL: KnownModel = {
     label: "Qwen3-Coder 30B-A3B Instruct (Q4_K_M)",
     short: "Qwen3-Coder 30B",
+    quant: "Q4_K_M",
     file: "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
     url: "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
     size: 18556689568,

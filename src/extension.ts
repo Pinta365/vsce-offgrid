@@ -193,7 +193,11 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
     picks.push(
         completionModel
             ? { label: `$(check) ${models.byPath(completionModel)?.short ?? completionModel}`, description: "in use" }
-            : { label: `$(cloud-download) Download ${COMPLETION_MODEL.label}`, description: gb(COMPLETION_MODEL.size), action: () => download(["completion"]) },
+            : {
+                  label: `$(cloud-download) Download ${COMPLETION_MODEL.short}`,
+                  description: `${gb(COMPLETION_MODEL.size)} · ${COMPLETION_MODEL.quant}`,
+                  action: () => download(["completion"]),
+              },
         { label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") },
     );
 
@@ -211,8 +215,8 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
         models.downloaded(CHAT_MODEL)
             ? chatItem(CHAT_MODEL)
             : {
-                  label: `$(cloud-download) Download ${CHAT_MODEL.label}`,
-                  description: gb(CHAT_MODEL.size),
+                  label: `$(cloud-download) Download ${CHAT_MODEL.short}`,
+                  description: `${gb(CHAT_MODEL.size)} · ${CHAT_MODEL.quant}`,
                   detail: "Runs on most machines, including CPU-only ones (slowly).",
                   action: async () => (await download([CHAT_MODEL])) && useChat(CHAT_MODEL),
               },
@@ -232,13 +236,15 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
         // Cards sold as 16 GB report a little less.
         const gpuOk = gpu === undefined || gpu >= need.gpuGiB * 0.95;
         const ramOk = ram >= need.ramGiB * 0.95;
-        const machine = `This machine: ${gpu ? `${Math.round(gpu)} GB GPU` : "GPU memory not known yet"}, ${Math.round(ram)} GB RAM.`;
+        const machine = `${gpu ? `${Math.round(gpu)} GB GPU` : "GPU memory not known yet"}, ${Math.round(ram)} GB RAM`;
+        const fit = gpuOk && ramOk ? `$(check) Fits this machine (${machine})` : `$(warning) Too large for this machine (${machine})`;
         picks.push({
-            label: `${gpuOk && ramOk ? "$(cloud-download)" : "$(warning)"} Download ${model.label}`,
-            description: gb(model.size) + (gpuOk && ramOk ? "" : " — too large for this machine"),
-            detail: `${need.why}. Runs part of the model on the CPU. ${machine}`,
+            label: `${gpuOk && ramOk ? "$(cloud-download)" : "$(warning)"} Download ${model.short}`,
+            description: `${gb(model.size)} · ${model.quant}`,
+            // The fit first: VS Code cuts long details off.
+            detail: `${fit}. ${need.why}.`,
             action: async () => {
-                const warn = gpuOk && ramOk ? "" : `\n\n${machine} It would run very slowly or not load at all.`;
+                const warn = gpuOk && ramOk ? "" : `\n\nThis machine has ${machine}: it would run very slowly or not load at all.`;
                 const ok = await vscode.window.showWarningMessage(
                     `${model.short} is a ${gb(model.size)} download and needs a GPU with at least ${need.gpuGiB} GB of memory and ${need.ramGiB} GB of RAM.`,
                     {
