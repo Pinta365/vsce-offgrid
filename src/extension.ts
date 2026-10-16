@@ -3,7 +3,7 @@ import { ChatProvider } from "./chat";
 import { CompletionProvider } from "./completion";
 import * as os from "os";
 import * as path from "path";
-import { CHAT_MODEL, CHAT_MODELS, COMPLETION_MODEL, KnownModel, Models, Role } from "./models";
+import { CHAT_MODEL, CHAT_MODELS, COMPLETION_MODEL, KnownModel, Models, Role, SETUPS, Setup } from "./models";
 import { GPU_MEMORY_KEY, Server, State } from "./server";
 
 /** globalState key: the user chose "Not Now" in the first-run prompt. */
@@ -131,7 +131,7 @@ async function firstRun(context: vscode.ExtensionContext, models: Models, server
         return;
     }
     const pick = await vscode.window.showInformationMessage(
-        "offgrid runs code completion and chat on this machine. It needs to download its models first (about 4 GB, once).",
+        "offgrid runs code completion and chat on this machine. Pick a setup that fits it to download the models (once).",
         "Set Up",
         "Not Now",
     );
@@ -150,8 +150,8 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
     const section = (label: string): Pick => ({ label, kind: vscode.QuickPickItemKind.Separator });
     const fail = (e: unknown) => void vscode.window.showErrorMessage(`offgrid: ${e instanceof Error ? e.message : e}`);
 
-    /** Download, then restart (a new default model doesn't change any setting). */
-    const download = async (which: (Role | KnownModel)[]) => {
+    /** Download, then restart unless the caller changes settings (which restarts it). */
+    const download = async (which: (Role | KnownModel)[], restart = true) => {
         try {
             for (const w of which) {
                 if (!(await models.download(w))) {
@@ -163,17 +163,32 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
             return false;
         }
         chat.refresh();
-        await server.restart();
+        if (restart) {
+            await server.restart();
+        }
         return true;
     };
-    /** Make `model` the chat model (the settings listener restarts the server). */
+    /**
+     * Make `model` the chat model. Changed settings restart the server (once, debounced); if
+     * nothing changed, restart here so newly downloaded models load.
+     */
     const useChat = async (model: KnownModel) => {
-        const isDefault = model === CHAT_MODEL;
         const gpu = context.globalState.get<number>(GPU_MEMORY_KEY);
         // A GPU big enough for the whole model doesn't need experts on the CPU.
         const experts = model.large && !(gpu && gpu >= model.large.gpuGiB * 1.5) ? model.large.expertLayersOnCpu : undefined;
-        await cfg().update("chat.model", isDefault ? undefined : models.pathOf(model), vscode.ConfigurationTarget.Global);
-        await cfg().update("chat.expertLayersOnCpu", experts, vscode.ConfigurationTarget.Global);
+        const wanted: [string, unknown][] = [
+            ["chat.model", model === CHAT_MODEL ? undefined : models.pathOf(model)],
+            ["chat.expertLayersOnCpu", experts],
+            ["chat.contextSize", model.contextSize],
+        ];
+        const changes = wanted.filter(([key, value]) => cfg().inspect(key)?.globalValue !== value);
+        for (const [key, value] of changes) {
+            await cfg().update(key, value, vscode.ConfigurationTarget.Global);
+        }
+        if (changes.length === 0) {
+            chat.refresh();
+            await server.restart();
+        }
     };
     const pickFile = async (role: Role, what: string) => {
         const file = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { "GGUF models": ["gguf"] }, title: `Model for ${what}` });
@@ -182,14 +197,68 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
         }
     };
 
-    const picks: Pick[] = [];
+    // What this machine has: the GPU from the server's device list (probed once), RAM from the OS.
+    let gpu = context.globalState.get<number>(GPU_MEMORY_KEY);
+    if (gpu === undefined) {
+        gpu = await server.probeGpu();
+    }
+    const ram = os.totalmem() / 2 ** 30;
+    const machine = `${gpu === undefined ? "GPU memory unknown" : gpu ? `${Math.round(gpu)} GB GPU` : "no dedicated GPU"}, ${Math.round(ram)} GB RAM`;
+    // Cards sold as 8 or 16 GB report a little less.
+    const fits = (s: Setup) => (gpu === undefined || s.gpuGiB === 0 || gpu >= s.gpuGiB * 0.95) && ram >= s.ramGiB * 0.95;
+    // The biggest setup that fits, except Large: heavy enough that it's always a deliberate choice.
+    const recommended = gpu === undefined ? undefined : [...SETUPS].reverse().find((s) => s.name !== "Large" && fits(s));
+
+    const current = models.chatFile();
     const completionModel = models.resolve("completion");
-    if (!completionModel && !models.resolve("chat") && !models.missingCustom("completion") && !models.missingCustom("chat")) {
+    const picks: Pick[] = [section("Setups")];
+    for (const setup of SETUPS) {
+        const chatModel = setup.chat;
+        const inUse = current === models.pathOf(chatModel) && models.downloaded(chatModel) && !!completionModel;
+        const missing = [COMPLETION_MODEL, chatModel].filter((m) => !models.downloaded(m) && (m !== COMPLETION_MODEL || !completionModel));
+        const size = missing.reduce((n, m) => n + m.size, 0);
+        const ok = fits(setup);
+        const fit =
+            gpu === undefined && setup.gpuGiB > 0
+                ? `$(question) Needs a ${setup.gpuGiB} GB GPU (${machine})`
+                : ok
+                  ? `$(check) Fits this machine (${machine})`
+                  : `$(warning) Too large for this machine (${machine})`;
         picks.push({
-            label: "$(cloud-download) Download the standard models",
-            description: gb(COMPLETION_MODEL.size + CHAT_MODEL.size),
-            detail: `${COMPLETION_MODEL.label} for code completion, ${CHAT_MODEL.label} for chat. Runs on most machines.`,
-            action: () => download(["completion", "chat"]),
+            label: `${inUse ? "$(check)" : !ok ? "$(warning)" : missing.length ? "$(cloud-download)" : "$(arrow-right)"} ${setup.name}`,
+            description: [
+                `${chatModel.short} + ${COMPLETION_MODEL.short}`,
+                inUse ? "in use" : missing.length ? gb(size) : "downloaded",
+                setup === recommended && !inUse ? "recommended" : "",
+            ]
+                .filter(Boolean)
+                .join(" · "),
+            // The fit first: VS Code cuts long details off.
+            detail: `${fit}. ${setup.detail}.`,
+            action: inUse
+                ? undefined
+                : async () => {
+                      if (chatModel.large || !ok) {
+                          const need = `${setup.gpuGiB ? `a GPU with at least ${setup.gpuGiB} GB of memory and ` : ""}${setup.ramGiB} GB of RAM`;
+                          const go = await vscode.window.showWarningMessage(
+                              `${setup.name} needs ${need}${size ? ` and downloads ${gb(size)}` : ""}.`,
+                              {
+                                  modal: true,
+                                  detail:
+                                      (chatModel.large ? "While it is loaded it uses almost all of the GPU's memory, so close other GPU-heavy programs. " : "") +
+                                      (ok ? "" : `This machine has ${machine}: it would run very slowly or not load at all. `) +
+                                      "You can switch setups in this list at any time.",
+                              },
+                              missing.length ? "Download" : "Use It",
+                          );
+                          if (!go) {
+                              return;
+                          }
+                      }
+                      if (missing.length === 0 || (await download(missing, false))) {
+                          await useChat(chatModel);
+                      }
+                  },
         });
     }
 
@@ -205,64 +274,19 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
         { label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") },
     );
 
-    const current = models.chatFile();
-    /** A downloaded chat model: in use, or one click to switch to it. */
-    const chatItem = (model: KnownModel): Pick =>
-        current === models.pathOf(model)
-            ? { label: `$(check) ${model.short}`, description: "in use for chat" }
-            : { label: `$(arrow-right) Use ${model.short} for chat`, description: "downloaded", action: () => useChat(model) };
     picks.push(section("Chat"));
     if (!CHAT_MODELS.some((m) => models.pathOf(m) === current)) {
         picks.push({ label: `$(check) ${path.basename(current)}`, description: "in use for chat (your file)", detail: current });
     }
-    picks.push(
-        models.downloaded(CHAT_MODEL)
-            ? chatItem(CHAT_MODEL)
-            : {
-                  label: `$(cloud-download) Download ${CHAT_MODEL.short}`,
-                  description: `${gb(CHAT_MODEL.size)} · ${CHAT_MODEL.quant}`,
-                  detail: "Runs on most machines, including CPU-only ones (slowly).",
-                  action: async () => (await download([CHAT_MODEL])) && useChat(CHAT_MODEL),
-              },
-        { label: "$(folder-opened) Use a GGUF file for chat…", action: () => pickFile("chat", "chat") },
-    );
-
-    // Large models: never a default; say what they need and whether this machine has it.
-    const gpu = context.globalState.get<number>(GPU_MEMORY_KEY);
-    const ram = os.totalmem() / 2 ** 30;
-    for (const model of CHAT_MODELS.filter((m) => m.large)) {
-        const need = model.large!;
-        picks.push(section(`Large models: need a ${need.gpuGiB} GB GPU and ${need.ramGiB} GB RAM`));
-        if (models.downloaded(model)) {
-            picks.push(chatItem(model));
-            continue;
-        }
-        // Cards sold as 16 GB report a little less.
-        const gpuOk = gpu === undefined || gpu >= need.gpuGiB * 0.95;
-        const ramOk = ram >= need.ramGiB * 0.95;
-        const machine = `${gpu ? `${Math.round(gpu)} GB GPU` : "GPU memory not known yet"}, ${Math.round(ram)} GB RAM`;
-        const fit = gpuOk && ramOk ? `$(check) Fits this machine (${machine})` : `$(warning) Too large for this machine (${machine})`;
-        picks.push({
-            label: `${gpuOk && ramOk ? "$(cloud-download)" : "$(warning)"} Download ${model.short}`,
-            description: `${gb(model.size)} · ${model.quant}`,
-            // The fit first: VS Code cuts long details off.
-            detail: `${fit}. ${need.why}.`,
-            action: async () => {
-                const warn = gpuOk && ramOk ? "" : `\n\nThis machine has ${machine}: it would run very slowly or not load at all.`;
-                const ok = await vscode.window.showWarningMessage(
-                    `${model.short} is a ${gb(model.size)} download and needs a GPU with at least ${need.gpuGiB} GB of memory and ${need.ramGiB} GB of RAM.`,
-                    {
-                        modal: true,
-                        detail: `While it is loaded it uses almost all of the GPU's memory, so close other GPU-heavy programs. You can switch back to ${CHAT_MODEL.short} in this list at any time.${warn}`,
-                    },
-                    "Download",
-                );
-                if (ok === "Download" && (await download([model]))) {
-                    await useChat(model);
-                }
-            },
-        });
+    // Downloaded chat models: the one in use, or one click to switch to it.
+    for (const model of CHAT_MODELS.filter((m) => models.downloaded(m))) {
+        picks.push(
+            current === models.pathOf(model)
+                ? { label: `$(check) ${model.short}`, description: "in use for chat" }
+                : { label: `$(arrow-right) Use ${model.short} for chat`, description: "downloaded", action: () => useChat(model) },
+        );
     }
+    picks.push({ label: "$(folder-opened) Use a GGUF file for chat…", action: () => pickFile("chat", "chat") });
 
     picks.push(section("Server"));
     picks.push({

@@ -71,6 +71,10 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
             stream: true,
             max_tokens: MAX_OUTPUT_TOKENS,
         };
+        const kwargs = this.models.byPath(this.models.chatFile())?.chatTemplateKwargs;
+        if (kwargs) {
+            body.chat_template_kwargs = kwargs;
+        }
         if (tools.length > 0) {
             body.tools = tools;
             body.tool_choice = options.toolMode === vscode.LanguageModelChatToolMode.Required ? "required" : "auto";

@@ -14,6 +14,10 @@ export interface KnownModel {
     url: string;
     size: number;
     sha256: string;
+    /** Chat context to use with this model (default: offgrid.chat.contextSize's default). */
+    contextSize?: number;
+    /** Sent with every chat request, e.g. to turn a hybrid model's thinking off. */
+    chatTemplateKwargs?: Record<string, unknown>;
     /** Set for models that only run well on big machines. */
     large?: {
         gpuGiB: number;
@@ -45,6 +49,19 @@ export const CHAT_MODEL: KnownModel = {
     sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
 };
 
+/** For 6 GB GPUs and CPU-only machines. A hybrid model: thinking is off (the chat view doesn't show it). */
+export const SMALL_CHAT_MODEL: KnownModel = {
+    label: "Qwen3 1.7B (Q4_K_M)",
+    short: "Qwen3 1.7B",
+    quant: "Q4_K_M",
+    file: "Qwen3-1.7B-Q4_K_M.gguf",
+    url: "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
+    size: 1107409472,
+    sha256: "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+    contextSize: 16384,
+    chatTemplateKwargs: { enable_thinking: false },
+};
+
 /** Much better in Agent mode, but 18.6 GB and only for 16 GB GPUs (experts partly on the CPU). */
 export const LARGE_CHAT_MODEL: KnownModel = {
     label: "Qwen3-Coder 30B-A3B Instruct (Q4_K_M)",
@@ -62,7 +79,42 @@ export const LARGE_CHAT_MODEL: KnownModel = {
     },
 };
 
-export const CHAT_MODELS = [CHAT_MODEL, LARGE_CHAT_MODEL];
+export const CHAT_MODELS = [SMALL_CHAT_MODEL, CHAT_MODEL, LARGE_CHAT_MODEL];
+
+/** A chat model and the code model, sized for a class of machine. */
+export interface Setup {
+    name: string;
+    chat: KnownModel;
+    /** Who it's for and what works, for the setup list. */
+    detail: string;
+    /** GPU memory it needs, in GiB (0: also runs on the CPU). */
+    gpuGiB: number;
+    ramGiB: number;
+}
+
+export const SETUPS: Setup[] = [
+    {
+        name: "Small",
+        chat: SMALL_CHAT_MODEL,
+        detail: "For 6 GB GPUs and CPU-only machines: code completion and Ask mode; too small for Agent mode",
+        gpuGiB: 0,
+        ramGiB: 8,
+    },
+    {
+        name: "Standard",
+        chat: CHAT_MODEL,
+        detail: "For 8 GB GPUs and up: code completion, Ask mode and light Agent use",
+        gpuGiB: 8,
+        ramGiB: 16,
+    },
+    {
+        name: "Large",
+        chat: LARGE_CHAT_MODEL,
+        detail: "For 16 GB GPUs with 32 GB RAM: the best in Agent mode; runs part of the model on the CPU",
+        gpuGiB: 16,
+        ramGiB: 32,
+    },
+];
 
 export type Role = "completion" | "chat";
 

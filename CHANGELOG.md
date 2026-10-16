@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Setups: Small (Qwen3 1.7B, for 6 GB GPUs and CPU-only machines), Standard (Qwen3 4B) and Large
+  (Qwen3-Coder 30B), with a fit check against this machine's GPU and RAM and a recommendation.
+  The GPU is read from offgrid-server's device list on first setup.
+- Hybrid thinking models (Qwen3 1.7B) run with thinking off, as the chat view doesn't show it
+
 ## [0.0.2] - 2026-10-16
 
 ### Added

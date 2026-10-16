@@ -18,9 +18,16 @@ llama.cpp on any GPU (Vulkan: AMD, NVIDIA, Intel) and falls back to the CPU.
 
 ## Getting started
 
-1. Install the extension. On first start it offers to download the models:
-   - Qwen2.5-Coder 1.5B (1.5 GB) for code completion
-   - Qwen3 4B Instruct (2.3 GB) for chat
+1. Install the extension. On first start it offers a setup to download (once). It checks this
+   machine's GPU and RAM, marks what fits, and recommends one:
+
+   | Setup | Chat model | Download | For |
+   |---|---|---|---|
+   | **Small** | Qwen3 1.7B | 2.6 GB | 6 GB GPUs and CPU-only machines: code completion and Ask mode |
+   | **Standard** | Qwen3 4B | 3.9 GB | 8 GB GPUs and up: also light Agent use |
+   | **Large** | Qwen3-Coder 30B | 18.8 GB | 16 GB GPUs with 32 GB RAM: the best in Agent mode |
+
+   All three use Qwen2.5-Coder 1.5B for code completion.
 2. Start typing. The status bar shows **offgrid** with the time of the last completion; click it
    for options.
 
@@ -42,16 +49,15 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 | `offgrid.gpu` | `true` | Off: run on the CPU only |
 | `offgrid.serverPath` | | Use your own offgrid-server build |
 
-## Bigger models
+## Switching setups and models
 
-With a 16 GB GPU and 32 GB of RAM, **Qwen3-Coder 30B-A3B** (17.3 GB download) is much better than
-the default in Agent mode. **offgrid: Set Up Models** lists it under *Large models*, says whether
-this machine is big enough, and asks before downloading. It doesn't fit a 16 GB GPU, but as a
+**offgrid: Set Up Models** switches between setups at any time; downloaded models stay, so
+switching back needs no download. Large's model doesn't fit a 16 GB GPU, but as a
 Mixture-of-Experts model it keeps part of its expert weights in RAM (`offgrid.chat.expertLayersOnCpu`,
-set for you). On an RX 9070 XT it runs at about 35 tokens/s with a 32k context. You can switch
-back to Qwen3 4B in the same list.
+set for you); on an RX 9070 XT it runs at about 35 tokens/s with a 32k context. Small runs its
+chat model with a 16k context, which is too little for Agent mode's prompt.
 
-Any other GGUF chat model works too (*Use a GGUF file for chat*).
+Any other GGUF model works too (*Use a GGUF file for chat* / *for code completion*).
 
 ## Requirements
 

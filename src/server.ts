@@ -112,6 +112,43 @@ export class Server implements vscode.Disposable {
         this.set({ kind: "stopped" });
     }
 
+    /**
+     * Memory of the largest dedicated GPU in GiB (0: none), from the server's device list. Started
+     * without a model, the server lists the devices and exits, so this is quick.
+     */
+    async probeGpu(): Promise<number | undefined> {
+        const binary = this.binary();
+        if (!binary) {
+            return undefined;
+        }
+        await ensureExecutable(binary);
+        return new Promise((resolve) => {
+            const child = spawn(binary, [], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+            let gib = 0;
+            let seen = false;
+            const onLine = (line: string) => {
+                const d = parseDevice(line);
+                seen ||= /\bdevice \S+ \(\w+\): /.test(line); // CPU-only machines list just the CPU
+                if (d?.dedicated && d.gib) {
+                    gib = Math.max(gib, d.gib);
+                }
+            };
+            lines(child.stdout!, onLine);
+            lines(child.stderr!, onLine);
+            const timer = setTimeout(() => child.kill(), 15_000);
+            child.once("error", () => resolve(undefined));
+            child.once("exit", () => {
+                clearTimeout(timer);
+                if (!seen) {
+                    return resolve(undefined);
+                }
+                void this.context.globalState.update(GPU_MEMORY_KEY, gib);
+                this.log.info(`largest dedicated GPU: ${gib ? `${gib} GiB` : "none"}`);
+                resolve(gib);
+            });
+        });
+    }
+
     async restart(): Promise<Endpoint | undefined> {
         await this.starting?.catch(() => undefined);
         this.stopOwn();
@@ -253,14 +290,13 @@ export class Server implements vscode.Disposable {
             if (recent.length > 20) {
                 recent.shift();
             }
-            // "device Vulkan0 (Gpu): AMD Radeon RX 9070 XT (RADV GFX1201) (15.9 GiB)": the first GPU
-            // listed is what runs the models; the largest dedicated one tells setup what fits.
-            const m = /device (\S+) \((Gpu|Igpu)\): (.*?)(?: \(([\d.]+) GiB\))?$/.exec(line);
-            if (m && device === "CPU" && vscode.workspace.getConfiguration("offgrid").get<boolean>("gpu", true)) {
-                device = m[3];
+            // The first GPU listed is what runs the models; the largest dedicated one tells setup what fits.
+            const d = parseDevice(line);
+            if (d && device === "CPU" && vscode.workspace.getConfiguration("offgrid").get<boolean>("gpu", true)) {
+                device = d.description;
             }
-            if (m?.[2] === "Gpu" && m[4]) {
-                gpuGiB = Math.max(gpuGiB, Number(m[4]));
+            if (d?.dedicated && d.gib) {
+                gpuGiB = Math.max(gpuGiB, d.gib);
                 void this.context.globalState.update(GPU_MEMORY_KEY, gpuGiB);
             }
         };
@@ -301,6 +337,15 @@ export class Server implements vscode.Disposable {
         await writeFile(this.sharedFile, JSON.stringify(shared), { mode: 0o600 });
         return endpoint;
     }
+}
+
+/**
+ * A device line of the server's startup log, e.g.
+ * "device Vulkan0 (Gpu): AMD Radeon RX 9070 XT (RADV GFX1201) (15.9 GiB)".
+ */
+function parseDevice(line: string): { description: string; dedicated: boolean; gib?: number } | undefined {
+    const m = /device (\S+) \((Gpu|Igpu)\): (.*?)(?: \(([\d.]+) GiB\))?$/.exec(line);
+    return m ? { description: m[3], dedicated: m[2] === "Gpu", gib: m[4] ? Number(m[4]) : undefined } : undefined;
 }
 
 /** Headers for a request to `endpoint`. */
