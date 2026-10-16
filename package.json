@@ -5,6 +5,7 @@
   "publisher": "Pinta365",
   "version": "0.0.1",
   "offgridServer": "0.4.0",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.104.0"
   },

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <!-- The grid fades out toward the top right: the sparkle sits off the grid. -->
+    <radialGradient id="fade" cx="18%" cy="88%" r="85%">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.55" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="gridmask"><rect width="256" height="256" fill="url(#fade)"/></mask>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse" x="8" y="8">
+      <path d="M24 0H0V24" fill="none" stroke="#3a4558" stroke-width="2"/>
+    </pattern>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#4be3a0" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#4be3a0" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tile"><rect x="10" y="10" width="236" height="236" rx="40"/></clipPath>
+  </defs>
+  <rect x="10" y="10" width="236" height="236" rx="40" fill="#141922"/>
+  <g clip-path="url(#tile)">
+    <rect width="256" height="256" fill="url(#grid)" mask="url(#gridmask)"/>
+    <circle cx="150" cy="104" r="92" fill="url(#glow)"/>
+  </g>
+  <!-- Four-pointed sparkle, and a small one -->
+  <path d="M150 34 C156 84 170 98 220 104 C170 110 156 124 150 174 C144 124 130 110 80 104 C130 98 144 84 150 34Z" fill="#4be3a0"/>
+  <path d="M78 150 C80 166 85 171 101 173 C85 175 80 180 78 196 C76 180 71 175 55 173 C71 171 76 166 78 150Z" fill="#c9f7e2"/>
+  <rect x="10" y="10" width="236" height="236" rx="40" fill="none" stroke="#4be3a0" stroke-width="8"/>
+</svg>

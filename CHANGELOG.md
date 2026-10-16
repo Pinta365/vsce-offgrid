@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Extension icon
+
 ## [0.0.1] - 2026-10-16
 
 ### Added
