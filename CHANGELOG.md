@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-10-16
+
 ### Added
 - Code completion (inline ghost text) with a local code model through offgrid-server's `/infill`
 - Local chat model in VS Code's Chat view (model picker, Ask and Agent modes)
