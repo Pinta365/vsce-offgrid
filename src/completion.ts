@@ -64,7 +64,7 @@ export class CompletionProvider implements vscode.InlineCompletionItemProvider, 
         token: vscode.CancellationToken,
     ): Promise<vscode.InlineCompletionItem[] | undefined> {
         const cfg = vscode.workspace.getConfiguration("offgrid");
-        if (!cfg.get<boolean>("completion.enabled", true) || document.uri.scheme === "output") {
+        if (!cfg.get<boolean>("completion.enabled", true)) {
             return undefined;
         }
         const line = document.lineAt(position.line).text;

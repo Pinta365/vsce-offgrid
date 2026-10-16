@@ -84,7 +84,7 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
                 signal: abort.signal,
             });
             if (!res.ok || !res.body) {
-                throw new Error(`offgrid: HTTP ${res.status} ${await res.text()}`);
+                throw new Error(explain(await res.text(), res.status));
             }
             for await (const event of sse(res.body)) {
                 if (event.error) {
@@ -201,6 +201,27 @@ async function* sse(body: ReadableStream<Uint8Array>): AsyncGenerator<ChunkEvent
             }
         }
     }
+}
+
+/** Server errors as messages for the chat view; a full context gets advice. */
+function explain(body: string, status: number): string {
+    let message = body;
+    try {
+        message = JSON.parse(body).error?.message ?? body;
+    } catch {
+        // not JSON
+    }
+    const overflow = /prompt needs (\d+) tokens but the context holds (\d+)/.exec(message);
+    if (overflow) {
+        const needed = Number(overflow[1]);
+        const suggest = 2 ** Math.ceil(Math.log2(needed + MAX_OUTPUT_TOKENS));
+        return (
+            `This request needs ${needed} tokens but the offgrid chat model's context holds ${overflow[2]}. ` +
+            `Agent mode sends a long prompt with its tools: use Ask mode, or set offgrid.chat.contextSize ` +
+            `to ${suggest} (needs more GPU memory).`
+        );
+    }
+    return `offgrid: ${message} (HTTP ${status})`;
 }
 
 function baseName(file: string): string {

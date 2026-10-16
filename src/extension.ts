@@ -49,7 +49,11 @@ export function activate(context: vscode.ExtensionContext) {
                 void showError(s.message);
             }
         }),
-        vscode.languages.registerInlineCompletionItemProvider({ pattern: "**" }, completion),
+        // Editors only: the chat input box is a document too.
+        vscode.languages.registerInlineCompletionItemProvider(
+            [{ scheme: "file" }, { scheme: "untitled" }, { scheme: "vscode-notebook-cell" }],
+            completion,
+        ),
         vscode.lm.registerLanguageModelChatProvider("offgrid", chat),
         vscode.commands.registerCommand("offgrid.setup", () => setup(models, server, chat)),
         vscode.commands.registerCommand("offgrid.restart", () => server.restart()),
