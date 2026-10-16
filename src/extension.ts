@@ -59,6 +59,9 @@ export function activate(context: vscode.ExtensionContext) {
             await cfg.update("completion.enabled", !cfg.get<boolean>("completion.enabled", true), vscode.ConfigurationTarget.Global);
         }),
         vscode.commands.registerCommand("offgrid.menu", () => menu(server)),
+        vscode.commands.registerCommand("offgrid.settings", () =>
+            vscode.commands.executeCommand("workbench.action.openSettings", `@ext:${context.extension.id}`),
+        ),
         vscode.workspace.onDidChangeConfiguration((e) => {
             if (e.affectsConfiguration("offgrid.completion.enabled")) {
                 render();
@@ -97,7 +100,7 @@ async function showError(message: string) {
     if (pick === "Show Log") {
         await vscode.commands.executeCommand("offgrid.showLog");
     } else if (pick === "Open Settings") {
-        await vscode.commands.executeCommand("workbench.action.openSettings", "offgrid");
+        await vscode.commands.executeCommand("offgrid.settings");
     }
 }
 
@@ -179,7 +182,19 @@ async function setup(models: Models, server: Server, chat: ChatProvider) {
             },
         );
     }
-    const pick = await vscode.window.showQuickPick(picks, { title: "offgrid: models" });
+    picks.push({
+        label: "$(file-binary) Use an offgrid-server binary…",
+        description: vscode.workspace.getConfiguration("offgrid").get<string>("serverPath", "") || "bundled",
+        action: async () => {
+            const file = await vscode.window.showOpenDialog({ canSelectMany: false, title: "offgrid-server binary" });
+            if (file?.[0]) {
+                await vscode.workspace
+                    .getConfiguration("offgrid")
+                    .update("serverPath", file[0].fsPath, vscode.ConfigurationTarget.Global);
+            }
+        },
+    });
+    const pick = await vscode.window.showQuickPick(picks, { title: "offgrid: models and server" });
     await pick?.action();
 }
 
@@ -188,6 +203,7 @@ async function menu(server: Server) {
     const items: (vscode.QuickPickItem & { command: string })[] = [
         { label: completion ? "$(circle-slash) Turn off code completion" : "$(sparkle) Turn on code completion", command: "offgrid.toggleCompletions" },
         { label: "$(cloud-download) Set up models…", command: "offgrid.setup" },
+        { label: "$(gear) Settings…", command: "offgrid.settings" },
         { label: "$(debug-restart) Restart server", command: "offgrid.restart" },
         { label: "$(output) Show log", command: "offgrid.showLog" },
     ];

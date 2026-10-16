@@ -40,7 +40,11 @@
     "commands": [
       {
         "command": "offgrid.setup",
-        "title": "offgrid: Set Up Models"
+        "title": "offgrid: Set Up Models and Server"
+      },
+      {
+        "command": "offgrid.settings",
+        "title": "offgrid: Settings"
       },
       {
         "command": "offgrid.restart",
