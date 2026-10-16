@@ -35,7 +35,8 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 | `offgrid.completion.model` | | A code model (GGUF with FIM tokens); empty: Qwen2.5-Coder 1.5B |
 | `offgrid.chat.enabled` | `true` | Load the chat model (about 3 GB more memory) |
 | `offgrid.chat.model` | | A chat model (GGUF); empty: Qwen3 4B Instruct |
-| `offgrid.contextSize` | `16384` | Context size per model; larger needs more GPU memory |
+| `offgrid.chat.contextSize` | `16384` | Chat context in tokens; larger fits longer chats and Agent mode's tools but needs more GPU memory |
+| `offgrid.completion.contextSize` | `8192` | Code model context in tokens |
 | `offgrid.gpu` | `true` | Off: run on the CPU only |
 | `offgrid.serverPath` | | Use your own offgrid-server build |
 

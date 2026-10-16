@@ -153,8 +153,10 @@ export class Server implements vscode.Disposable {
         if (!completion && !chat) {
             return { setup: "no model downloaded yet: run “offgrid: Set Up Models”" };
         }
-        const contextSize = cfg.get<number>("contextSize", 16384);
-        const args = ["--host", "127.0.0.1", "--cache-reuse", "256"];
+        const contextSize = cfg.get<number>("chat.contextSize", 16384);
+        const completionContext = cfg.get<number>("completion.contextSize", 8192);
+        // --exit-on-stdin-close: the server exits with this extension host, even if it crashes.
+        const args = ["--host", "127.0.0.1", "--cache-reuse", "256", "--exit-on-stdin-close"];
         if (completion) {
             args.push("--fim-model", completion, "--fim-alias", COMPLETION_ID);
         }
@@ -163,6 +165,9 @@ export class Server implements vscode.Disposable {
         }
         if (contextSize > 0) {
             args.push("--ctx", String(contextSize));
+        }
+        if (completion && completionContext > 0) {
+            args.push("--fim-ctx", String(completionContext));
         }
         if (!cfg.get<boolean>("gpu", true)) {
             args.push("--gpu-layers", "none");
@@ -211,7 +216,7 @@ export class Server implements vscode.Disposable {
         this.log.info(`starting ${launch.binary} ${args.join(" ")}`);
         const child = spawn(launch.binary, args, {
             env: { ...process.env, OFFGRID_API_KEY: key },
-            stdio: ["ignore", "pipe", "pipe"],
+            stdio: ["pipe", "pipe", "pipe"], // stdin stays open until this process ends
             windowsHide: true,
         });
         this.child = child;

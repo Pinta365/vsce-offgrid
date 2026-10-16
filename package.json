@@ -90,6 +90,12 @@
           "minimum": 0,
           "description": "After this much generation time, end the completion at the next line break. 0: no limit."
         },
+        "offgrid.completion.contextSize": {
+          "type": "number",
+          "default": 8192,
+          "minimum": 0,
+          "description": "Context size in tokens for the code model: the code around the cursor plus context from other files. 0: the model's default, at most 8192."
+        },
         "offgrid.chat.enabled": {
           "type": "boolean",
           "default": true,
@@ -100,11 +106,11 @@
           "default": "",
           "description": "Chat model (GGUF). Empty: Qwen3 4B Instruct, downloaded on first use."
         },
-        "offgrid.contextSize": {
+        "offgrid.chat.contextSize": {
           "type": "number",
           "default": 16384,
           "minimum": 0,
-          "description": "Context size in tokens for each model. Larger fits longer chats but needs more GPU memory. 0: the model's default, at most 8192."
+          "description": "Context size in tokens for the chat model. Larger fits longer chats and more tools (Agent mode) but needs more GPU memory. 0: the model's default, at most 8192."
         },
         "offgrid.gpu": {
           "type": "boolean",

@@ -31,7 +31,7 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
         if (!cfg.get<boolean>("chat.enabled", true) || !this.models.resolve("chat")) {
             return [];
         }
-        const context = cfg.get<number>("contextSize", 16384) || 8192;
+        const context = cfg.get<number>("chat.contextSize", 16384) || 8192;
         const output = Math.min(MAX_OUTPUT_TOKENS, Math.floor(context / 4));
         const custom = cfg.get<string>("chat.model", "").trim();
         return [
