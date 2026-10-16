@@ -44,11 +44,14 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 
 ## Bigger models
 
-Any GGUF chat model works (**offgrid: Set Up Models** → *Use a GGUF file for chat*). On a 16 GB GPU,
-**Qwen3-Coder-30B-A3B-Instruct** (Q4_K_M, 18.6 GB) is much better than the default in Agent mode.
-It doesn't fit the GPU, but as a Mixture-of-Experts model it can keep part of its expert weights in
-RAM: set `offgrid.chat.expertLayersOnCpu` to `24`. On an RX 9070 XT that runs at about 35 tokens/s
-with a 32k context.
+With a 16 GB GPU and 32 GB of RAM, **Qwen3-Coder 30B-A3B** (17.3 GB download) is much better than
+the default in Agent mode. **offgrid: Set Up Models** lists it under *Large models*, says whether
+this machine is big enough, and asks before downloading. It doesn't fit a 16 GB GPU, but as a
+Mixture-of-Experts model it keeps part of its expert weights in RAM (`offgrid.chat.expertLayersOnCpu`,
+set for you). On an RX 9070 XT it runs at about 35 tokens/s with a 32k context. You can switch
+back to Qwen3 4B in the same list.
+
+Any other GGUF chat model works too (*Use a GGUF file for chat*).
 
 ## Requirements
 

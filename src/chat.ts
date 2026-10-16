@@ -33,15 +33,16 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
         }
         const context = cfg.get<number>("chat.contextSize", 32768) || 8192;
         const output = Math.min(MAX_OUTPUT_TOKENS, Math.floor(context / 4));
-        const custom = cfg.get<string>("chat.model", "").trim();
+        const file = this.models.chatFile();
+        const known = this.models.byPath(file);
         return [
             {
                 id: CHAT_ID,
-                name: custom ? `offgrid: ${baseName(custom)}` : "offgrid: Qwen3 4B",
+                name: `offgrid: ${known?.short ?? baseName(file)}`,
                 family: "offgrid",
                 version: "1",
                 detail: "local",
-                tooltip: `Runs on this machine (${custom || this.models.known("chat").label})`,
+                tooltip: `Runs on this machine (${known?.label ?? file})`,
                 maxInputTokens: context - output,
                 maxOutputTokens: output,
                 capabilities: { toolCalling: true, imageInput: false },

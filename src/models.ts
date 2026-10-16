@@ -7,14 +7,26 @@ import * as path from "path";
 /** A model the extension can download, pinned by size and SHA-256. */
 export interface KnownModel {
     label: string;
+    /** Name in the chat model picker. */
+    short: string;
     file: string;
     url: string;
     size: number;
     sha256: string;
+    /** Set for models that only run well on big machines. */
+    large?: {
+        gpuGiB: number;
+        ramGiB: number;
+        /** `offgrid.chat.expertLayersOnCpu` that fits a GPU of `gpuGiB`. */
+        expertLayersOnCpu: number;
+        /** Why one would want it, for the setup list. */
+        why: string;
+    };
 }
 
 export const COMPLETION_MODEL: KnownModel = {
     label: "Qwen2.5-Coder 1.5B (Q8_0)",
+    short: "Qwen2.5-Coder 1.5B",
     file: "qwen2.5-coder-1.5b-q8_0.gguf",
     url: "https://huggingface.co/ggml-org/Qwen2.5-Coder-1.5B-Q8_0-GGUF/resolve/main/qwen2.5-coder-1.5b-q8_0.gguf",
     size: 1646573056,
@@ -23,11 +35,30 @@ export const COMPLETION_MODEL: KnownModel = {
 
 export const CHAT_MODEL: KnownModel = {
     label: "Qwen3 4B Instruct 2507 (Q4_K_M)",
+    short: "Qwen3 4B",
     file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
     url: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
     size: 2497281120,
     sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
 };
+
+/** Much better in Agent mode, but 18.6 GB and only for 16 GB GPUs (experts partly on the CPU). */
+export const LARGE_CHAT_MODEL: KnownModel = {
+    label: "Qwen3-Coder 30B-A3B Instruct (Q4_K_M)",
+    short: "Qwen3-Coder 30B",
+    file: "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
+    url: "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
+    size: 18556689568,
+    sha256: "fadc3e5f8d42bf7e894a785b05082e47daee4df26680389817e2093056f088ad",
+    large: {
+        gpuGiB: 16,
+        ramGiB: 32,
+        expertLayersOnCpu: 24,
+        why: "Much better at Agent mode and code questions than Qwen3 4B; about 35 tokens/s on a 16 GB GPU",
+    },
+};
+
+export const CHAT_MODELS = [CHAT_MODEL, LARGE_CHAT_MODEL];
 
 export type Role = "completion" | "chat";
 
@@ -60,10 +91,31 @@ export class Models {
         return KNOWN[role];
     }
 
-    /** Download the default model for `role` with progress; verifies size and SHA-256. */
-    async download(role: Role): Promise<string | undefined> {
-        const model = KNOWN[role];
-        const target = path.join(this.dir, model.file);
+    /** Where `model` is (or would be) downloaded. */
+    pathOf(model: KnownModel): string {
+        return path.join(this.dir, model.file);
+    }
+
+    downloaded(model: KnownModel): boolean {
+        return existsSync(this.pathOf(model));
+    }
+
+    /** The known model at `file`, if it is one (by file name), for naming it. */
+    byPath(file: string): KnownModel | undefined {
+        const name = path.basename(file);
+        return [COMPLETION_MODEL, ...CHAT_MODELS].find((m) => m.file === name);
+    }
+
+    /** The chat model in use: the configured file, or the default one. */
+    chatFile(): string {
+        const configured = vscode.workspace.getConfiguration("offgrid").get<string>("chat.model", "").trim();
+        return configured || this.pathOf(CHAT_MODEL);
+    }
+
+    /** Download `model` (or the default for a role) with progress; verifies size and SHA-256. */
+    async download(which: Role | KnownModel): Promise<string | undefined> {
+        const model = typeof which === "string" ? KNOWN[which] : which;
+        const target = this.pathOf(model);
         if (existsSync(target)) {
             return target;
         }

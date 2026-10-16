@@ -8,3 +8,4 @@
 - Model setup: downloads Qwen2.5-Coder 1.5B and Qwen3 4B Instruct (verified by SHA-256), or uses your own GGUF files
 - One server shared by all VS Code windows
 - Status bar item with the server state and completion timing
+- Qwen3-Coder 30B-A3B as an optional large chat model for 16 GB GPUs, with its expert weights partly on the CPU

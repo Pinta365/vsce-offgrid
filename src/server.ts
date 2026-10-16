@@ -11,6 +11,9 @@ import { Models } from "./models";
 /** The offgrid release whose server the extension's flags need (package.json `offgridServer`). */
 const OFFGRID_VERSION: string = require("../package.json").offgridServer;
 
+/** globalState key: memory of the largest dedicated GPU, in GiB, as the server reported it. */
+export const GPU_MEMORY_KEY = "gpuMemoryGiB";
+
 /** Model ids the server reports; fixed so requests don't depend on file names. */
 export const COMPLETION_ID = "offgrid-completion";
 export const CHAT_ID = "offgrid-chat";
@@ -231,6 +234,7 @@ export class Server implements vscode.Disposable {
         });
         this.child = child;
         let device = "CPU";
+        let gpuGiB = 0;
         const recent: string[] = [];
         const onLine = (line: string) => {
             if (!line.trim()) {
@@ -241,10 +245,15 @@ export class Server implements vscode.Disposable {
             if (recent.length > 20) {
                 recent.shift();
             }
-            // "device Vulkan0 (Gpu): AMD Radeon RX 9070 XT (RADV GFX1201)": the first GPU listed.
-            const m = /device (\S+) \((Gpu|Igpu)\): (.*)$/.exec(line);
+            // "device Vulkan0 (Gpu): AMD Radeon RX 9070 XT (RADV GFX1201) (15.9 GiB)": the first GPU
+            // listed is what runs the models; the largest dedicated one tells setup what fits.
+            const m = /device (\S+) \((Gpu|Igpu)\): (.*?)(?: \(([\d.]+) GiB\))?$/.exec(line);
             if (m && device === "CPU" && vscode.workspace.getConfiguration("offgrid").get<boolean>("gpu", true)) {
                 device = m[3];
+            }
+            if (m?.[2] === "Gpu" && m[4]) {
+                gpuGiB = Math.max(gpuGiB, Number(m[4]));
+                void this.context.globalState.update(GPU_MEMORY_KEY, gpuGiB);
             }
         };
         lines(child.stdout!, onLine);

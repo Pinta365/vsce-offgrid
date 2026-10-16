@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import { ChatProvider } from "./chat";
 import { CompletionProvider } from "./completion";
-import { Models, Role } from "./models";
-import { Server, State } from "./server";
+import * as os from "os";
+import * as path from "path";
+import { CHAT_MODEL, CHAT_MODELS, COMPLETION_MODEL, KnownModel, Models, Role } from "./models";
+import { GPU_MEMORY_KEY, Server, State } from "./server";
 
 /** Settings that change what the server loads. */
 const LAUNCH_SETTINGS = [
@@ -39,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
         render();
     });
     const chat = new ChatProvider(server, models, log);
+    let restartTimer: NodeJS.Timeout | undefined;
 
     context.subscriptions.push(
         log,
@@ -57,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
             completion,
         ),
         vscode.lm.registerLanguageModelChatProvider("offgrid", chat),
-        vscode.commands.registerCommand("offgrid.setup", () => setup(models, server, chat)),
+        vscode.commands.registerCommand("offgrid.setup", () => setup(context, models, server, chat)),
         vscode.commands.registerCommand("offgrid.restart", () => server.restart()),
         vscode.commands.registerCommand("offgrid.showLog", () => log.show()),
         vscode.commands.registerCommand("offgrid.toggleCompletions", async () => {
@@ -73,8 +76,12 @@ export function activate(context: vscode.ExtensionContext) {
                 render();
             }
             if (LAUNCH_SETTINGS.some((s) => e.affectsConfiguration(s))) {
-                chat.refresh();
-                void server.restart();
+                // Setup changes several settings at once: restart (and load the models) once.
+                clearTimeout(restartTimer);
+                restartTimer = setTimeout(() => {
+                    chat.refresh();
+                    void server.restart();
+                }, 300);
             }
         }),
     );
@@ -125,83 +132,141 @@ async function firstRun(context: vscode.ExtensionContext, models: Models, server
         "Not Now",
     );
     if (pick === "Set Up") {
-        await setup(models, server, chat);
+        await setup(context, models, server, chat);
     } else {
         await context.globalState.update("setupDismissed", true);
         await server.ensure();
     }
 }
 
-async function setup(models: Models, server: Server, chat: ChatProvider) {
-    type Pick = vscode.QuickPickItem & { action: () => Promise<unknown> };
-    const picks: Pick[] = [];
-    const download = async (roles: Role[]) => {
+async function setup(context: vscode.ExtensionContext, models: Models, server: Server, chat: ChatProvider) {
+    type Pick = vscode.QuickPickItem & { action?: () => Promise<unknown> };
+    const cfg = () => vscode.workspace.getConfiguration("offgrid");
+    const gb = (bytes: number) => `${(bytes / 2 ** 30).toFixed(1)} GB`;
+    const section = (label: string): Pick => ({ label, kind: vscode.QuickPickItemKind.Separator });
+    const fail = (e: unknown) => void vscode.window.showErrorMessage(`offgrid: ${e instanceof Error ? e.message : e}`);
+
+    /** Download, then restart (a new default model doesn't change any setting). */
+    const download = async (which: (Role | KnownModel)[]) => {
         try {
-            for (const role of roles) {
-                if (!(await models.download(role))) {
-                    return; // cancelled
+            for (const w of which) {
+                if (!(await models.download(w))) {
+                    return false; // cancelled
                 }
             }
         } catch (e) {
-            void vscode.window.showErrorMessage(`offgrid: ${e instanceof Error ? e.message : e}`);
-            return;
+            fail(e);
+            return false;
         }
         chat.refresh();
         await server.restart();
+        return true;
     };
-    const missing = (["completion", "chat"] as Role[]).filter((r) => !models.resolve(r) && !models.missingCustom(r));
-    if (missing.length === 2) {
+    /** Make `model` the chat model (the settings listener restarts the server). */
+    const useChat = async (model: KnownModel) => {
+        const isDefault = model === CHAT_MODEL;
+        const gpu = context.globalState.get<number>(GPU_MEMORY_KEY);
+        // A GPU big enough for the whole model doesn't need experts on the CPU.
+        const experts = model.large && !(gpu && gpu >= model.large.gpuGiB * 1.5) ? model.large.expertLayersOnCpu : undefined;
+        await cfg().update("chat.model", isDefault ? undefined : models.pathOf(model), vscode.ConfigurationTarget.Global);
+        await cfg().update("chat.expertLayersOnCpu", experts, vscode.ConfigurationTarget.Global);
+    };
+    const pickFile = async (role: Role, what: string) => {
+        const file = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { "GGUF models": ["gguf"] }, title: `Model for ${what}` });
+        if (file?.[0]) {
+            await cfg().update(`${role}.model`, file[0].fsPath, vscode.ConfigurationTarget.Global);
+        }
+    };
+
+    const picks: Pick[] = [];
+    const completionModel = models.resolve("completion");
+    if (!completionModel && !models.resolve("chat") && !models.missingCustom("completion") && !models.missingCustom("chat")) {
         picks.push({
-            label: "$(cloud-download) Download both models",
-            description: `${((models.known("completion").size + models.known("chat").size) / 2 ** 30).toFixed(1)} GB`,
-            detail: `${models.known("completion").label} for code completion, ${models.known("chat").label} for chat`,
-            action: () => download(missing),
+            label: "$(cloud-download) Download the standard models",
+            description: gb(COMPLETION_MODEL.size + CHAT_MODEL.size),
+            detail: `${COMPLETION_MODEL.label} for code completion, ${CHAT_MODEL.label} for chat. Runs on most machines.`,
+            action: () => download(["completion", "chat"]),
         });
     }
-    for (const role of ["completion", "chat"] as Role[]) {
-        const what = role === "completion" ? "code completion" : "chat";
-        const known = models.known(role);
-        const have = models.resolve(role);
-        picks.push(
-            have
-                ? { label: `$(check) ${what}: ${have}`, action: async () => undefined }
-                : {
-                      label: `$(cloud-download) Download ${known.label} for ${what}`,
-                      description: `${(known.size / 2 ** 30).toFixed(1)} GB`,
-                      action: () => download([role]),
-                  },
-            {
-                label: `$(folder-opened) Use a GGUF file for ${what}…`,
-                action: async () => {
-                    const file = await vscode.window.showOpenDialog({
-                        canSelectMany: false,
-                        filters: { "GGUF models": ["gguf"] },
-                        title: `Model for ${what}`,
-                    });
-                    if (file?.[0]) {
-                        // The settings listener restarts the server.
-                        await vscode.workspace
-                            .getConfiguration("offgrid")
-                            .update(`${role}.model`, file[0].fsPath, vscode.ConfigurationTarget.Global);
-                    }
-                },
-            },
-        );
+
+    picks.push(section("Code completion"));
+    picks.push(
+        completionModel
+            ? { label: `$(check) ${models.byPath(completionModel)?.short ?? completionModel}`, description: "in use" }
+            : { label: `$(cloud-download) Download ${COMPLETION_MODEL.label}`, description: gb(COMPLETION_MODEL.size), action: () => download(["completion"]) },
+        { label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") },
+    );
+
+    const current = models.chatFile();
+    /** A downloaded chat model: in use, or one click to switch to it. */
+    const chatItem = (model: KnownModel): Pick =>
+        current === models.pathOf(model)
+            ? { label: `$(check) ${model.short}`, description: "in use for chat" }
+            : { label: `$(arrow-right) Use ${model.short} for chat`, description: "downloaded", action: () => useChat(model) };
+    picks.push(section("Chat"));
+    if (!CHAT_MODELS.some((m) => models.pathOf(m) === current)) {
+        picks.push({ label: `$(check) ${path.basename(current)}`, description: "in use for chat (your file)", detail: current });
     }
+    picks.push(
+        models.downloaded(CHAT_MODEL)
+            ? chatItem(CHAT_MODEL)
+            : {
+                  label: `$(cloud-download) Download ${CHAT_MODEL.label}`,
+                  description: gb(CHAT_MODEL.size),
+                  detail: "Runs on most machines, including CPU-only ones (slowly).",
+                  action: async () => (await download([CHAT_MODEL])) && useChat(CHAT_MODEL),
+              },
+        { label: "$(folder-opened) Use a GGUF file for chat…", action: () => pickFile("chat", "chat") },
+    );
+
+    // Large models: never a default; say what they need and whether this machine has it.
+    const gpu = context.globalState.get<number>(GPU_MEMORY_KEY);
+    const ram = os.totalmem() / 2 ** 30;
+    for (const model of CHAT_MODELS.filter((m) => m.large)) {
+        const need = model.large!;
+        picks.push(section(`Large models: need a ${need.gpuGiB} GB GPU and ${need.ramGiB} GB RAM`));
+        if (models.downloaded(model)) {
+            picks.push(chatItem(model));
+            continue;
+        }
+        // Cards sold as 16 GB report a little less.
+        const gpuOk = gpu === undefined || gpu >= need.gpuGiB * 0.95;
+        const ramOk = ram >= need.ramGiB * 0.95;
+        const machine = `This machine: ${gpu ? `${Math.round(gpu)} GB GPU` : "GPU memory not known yet"}, ${Math.round(ram)} GB RAM.`;
+        picks.push({
+            label: `${gpuOk && ramOk ? "$(cloud-download)" : "$(warning)"} Download ${model.label}`,
+            description: gb(model.size) + (gpuOk && ramOk ? "" : " — too large for this machine"),
+            detail: `${need.why}. Runs part of the model on the CPU. ${machine}`,
+            action: async () => {
+                const warn = gpuOk && ramOk ? "" : `\n\n${machine} It would run very slowly or not load at all.`;
+                const ok = await vscode.window.showWarningMessage(
+                    `${model.short} is a ${gb(model.size)} download and needs a GPU with at least ${need.gpuGiB} GB of memory and ${need.ramGiB} GB of RAM.`,
+                    {
+                        modal: true,
+                        detail: `While it is loaded it uses almost all of the GPU's memory, so close other GPU-heavy programs. You can switch back to ${CHAT_MODEL.short} in this list at any time.${warn}`,
+                    },
+                    "Download",
+                );
+                if (ok === "Download" && (await download([model]))) {
+                    await useChat(model);
+                }
+            },
+        });
+    }
+
+    picks.push(section("Server"));
     picks.push({
         label: "$(file-binary) Use an offgrid-server binary…",
-        description: vscode.workspace.getConfiguration("offgrid").get<string>("serverPath", "") || "bundled",
+        description: cfg().get<string>("serverPath", "") || "bundled",
         action: async () => {
             const file = await vscode.window.showOpenDialog({ canSelectMany: false, title: "offgrid-server binary" });
             if (file?.[0]) {
-                await vscode.workspace
-                    .getConfiguration("offgrid")
-                    .update("serverPath", file[0].fsPath, vscode.ConfigurationTarget.Global);
+                await cfg().update("serverPath", file[0].fsPath, vscode.ConfigurationTarget.Global);
             }
         },
     });
     const pick = await vscode.window.showQuickPick(picks, { title: "offgrid: models and server" });
-    await pick?.action();
+    await pick?.action?.();
 }
 
 async function menu(server: Server) {
