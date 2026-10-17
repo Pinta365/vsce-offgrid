@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-10-17
+
 ### Added
 - Setups: Small (Qwen3 1.7B, for 6 GB GPUs and CPU-only machines), Standard (Qwen3 4B) and Large
   (Qwen3-Coder 30B), with a fit check against this machine's GPU and RAM and a recommendation.
