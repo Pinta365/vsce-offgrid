@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-10-17
+
 ### Changed
 - Setups use newer chat models: Tiny Qwen3.5 0.8B, Small Qwen3.5 2B, Standard Qwen3.5 4B, Large
   Qwen3.6 35B-A3B. On an agent benchmark Small went from 0/5 to 4/5 and Large from 4/5 to 5/5, with less
