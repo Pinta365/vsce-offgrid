@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-10-17
+
 ### Added
 - The offgrid log shows each chat request: its size, whether it was answered, thinking, timing, and
   cancellation
