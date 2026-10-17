@@ -4,7 +4,7 @@
   "description": "Code completion and chat with local models. No account, no cloud: offgrid runs the models on your GPU or CPU.",
   "publisher": "Pinta365",
   "version": "0.0.5",
-  "offgridServer": "0.4.0",
+  "offgridServer": "0.4.1",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.104.0"
@@ -113,7 +113,7 @@
         "offgrid.chat.model": {
           "type": "string",
           "default": "",
-          "description": "Chat model (GGUF). Empty: Qwen3 4B Instruct, downloaded on first use."
+          "description": "Chat model (GGUF). Empty: Qwen3.5 4B, downloaded on first use."
         },
         "offgrid.chat.contextSize": {
           "type": "number",
@@ -125,7 +125,7 @@
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "markdownDescription": "For Mixture-of-Experts chat models too large for the GPU (e.g. Qwen3-Coder-30B-A3B): keep the expert weights of this many layers in RAM and run them on the CPU, while attention stays on the GPU. Raise it until the model loads; on a 16 GB GPU, 24 works for Qwen3-Coder-30B-A3B. 0: off."
+          "markdownDescription": "For Mixture-of-Experts chat models too large for the GPU (e.g. Qwen3.6-35B-A3B): keep the expert weights of this many layers in RAM and run them on the CPU, while attention stays on the GPU. Raise it until the model loads; on a 16 GB GPU, 28 works for Qwen3.6-35B-A3B. 0: off."
         },
         "offgrid.cacheType": {
           "type": "string",

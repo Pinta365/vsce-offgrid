@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+- Setups use newer chat models: Tiny Qwen3.5 0.8B, Small Qwen3.5 2B, Standard Qwen3.5 4B, Large
+  Qwen3.6 35B-A3B. On an agent benchmark Small went from 0/5 to 4/5 and Large from 4/5 to 5/5, with less
+  GPU memory than before. Bundles offgrid 0.4.1, which keeps context checkpoints for these hybrid
+  models so new chats reuse the system prompt.
+- Models from earlier versions stay recognized and selectable while downloaded; an install still on
+  the previous default (Qwen3 4B) keeps it until another setup is chosen
+
 ## [0.0.5] - 2026-10-17
 
 ### Added

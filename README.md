@@ -11,7 +11,7 @@ llama.cpp on any GPU (Vulkan: AMD, NVIDIA, Intel) and falls back to the CPU.
 - **Code completion**: suggestions as you type (ghost text; Tab accepts) from a code model with
   fill-in-the-middle, using the code before and after the cursor and code from files you recently
   visited.
-- **Chat**: a local model in VS Code's Chat view. Pick **offgrid: Qwen3 4B** in the model picker;
+- **Chat**: a local model in VS Code's Chat view. Pick **offgrid: Qwen3.5 4B** (or your setup's model) in the model picker;
   it works in Ask and Agent modes, with tool calling.
 - **Bundled server**: the extension ships offgrid-server for your platform and starts it
   when needed. All VS Code windows share one server, so the models load once.
@@ -23,10 +23,10 @@ llama.cpp on any GPU (Vulkan: AMD, NVIDIA, Intel) and falls back to the CPU.
 
    | Setup | Chat model | Download | For |
    |---|---|---|---|
-   | **Tiny** | Qwen3 0.6B | 1.1 GB | No dedicated GPU, or under 6 GB: fast code completion (Qwen2.5-Coder 0.5B); chat for simple questions only |
-   | **Small** | Qwen3 1.7B | 2.6 GB | 6 GB GPUs: code completion and chat (5.2 GB on an RTX 3060 6 GB) |
-   | **Standard** | Qwen3 4B | 3.9 GB | 8 GB GPUs and up: also light Agent use |
-   | **Large** | Qwen3-Coder 30B | 18.8 GB | 16 GB GPUs with 32 GB RAM: the best in Agent mode |
+   | **Tiny** | Qwen3.5 0.8B | 1.3 GB | No dedicated GPU, or under 6 GB: fast code completion (Qwen2.5-Coder 0.5B); chat for simple questions |
+   | **Small** | Qwen3.5 2B | 2.7 GB | 6 GB GPUs: code completion, chat and light Agent use (about 4 GB in use) |
+   | **Standard** | Qwen3.5 4B | 4.1 GB | 8 GB GPUs and up: better answers (about 6 GB in use) |
+   | **Large** | Qwen3.6 35B-A3B | 22.1 GB | 16 GB GPUs with 32 GB RAM: the best in Agent mode |
 
    Small, Standard and Large use Qwen2.5-Coder 1.5B for code completion.
 2. Start typing. The status bar shows **offgrid** with the time of the last completion; click it
@@ -42,7 +42,7 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 | `offgrid.completion.enabled` | `true` | Suggest code as you type |
 | `offgrid.completion.model` | | A code model (GGUF with FIM tokens); empty: Qwen2.5-Coder 1.5B |
 | `offgrid.chat.enabled` | `true` | Load the chat model (about 3 GB more memory) |
-| `offgrid.chat.model` | | A chat model (GGUF); empty: Qwen3 4B Instruct |
+| `offgrid.chat.model` | | A chat model (GGUF); empty: Qwen3.5 4B |
 | `offgrid.chat.contextSize` | `32768` | Chat context in tokens; Agent mode's instructions and tools need about 20k |
 | `offgrid.chat.expertLayersOnCpu` | `0` | For MoE chat models larger than the GPU: run this many layers' experts on the CPU |
 | `offgrid.cacheType` | `q8_0` | Context storage: `q8_0` (half the memory of `f16`), `f16` or `q4_0` |
@@ -55,7 +55,8 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 **offgrid: Set Up Models** switches between setups at any time; downloaded models stay, so
 switching back needs no download. Large's model doesn't fit a 16 GB GPU, but as a
 Mixture-of-Experts model it keeps part of its expert weights in RAM (`offgrid.chat.expertLayersOnCpu`,
-set for you); on an RX 9070 XT it runs at about 35 tokens/s with a 32k context.
+set for you); on an RX 9070 XT it runs at about 37 tokens/s with a 32k context. Models from earlier versions
+(Qwen3 0.6B / 1.7B / 4B, Qwen3-Coder 30B) stay listed under *Choose models one by one* while downloaded.
 
 Any other GGUF model works too (*Use a GGUF file for chat* / *for code completion*).
 

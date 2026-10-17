@@ -10,6 +10,7 @@ import {
     COMPLETION_MODELS,
     KnownModel,
     Models,
+    OLDER_CHAT_MODELS,
     Role,
     SETUPS,
     Setup,
@@ -331,11 +332,19 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
         items.push({ label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") });
 
         items.push(section("Chat"));
-        if (!CHAT_MODELS.some((m) => models.pathOf(m) === current)) {
+        if (![...CHAT_MODELS, ...OLDER_CHAT_MODELS].some((m) => models.pathOf(m) === current)) {
             items.push({ label: `$(check) ${path.basename(current)}`, description: "in use for chat (your file)", detail: current });
         }
-        for (const model of CHAT_MODELS) {
-            const setup = SETUPS.find((s) => s.chat === model)!;
+        for (const model of [...CHAT_MODELS, ...OLDER_CHAT_MODELS.filter((m) => models.downloaded(m))]) {
+            // What it needs: its setup's requirements, or (older models) its own.
+            const setup = SETUPS.find((s) => s.chat === model) ?? {
+                name: model.short,
+                chat: model,
+                completion: COMPLETION_MODEL,
+                detail: "",
+                gpuGiB: model.large?.gpuGiB ?? 0,
+                ramGiB: model.large?.ramGiB ?? 8,
+            };
             if (current === models.pathOf(model) && models.downloaded(model)) {
                 items.push({ label: `$(check) ${model.short}`, description: "in use for chat" });
             } else if (models.downloaded(model)) {

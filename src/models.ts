@@ -52,59 +52,116 @@ export const TINY_COMPLETION_MODEL: KnownModel = {
 
 export const COMPLETION_MODELS = [TINY_COMPLETION_MODEL, COMPLETION_MODEL];
 
+// Chat models. Qwen3.5 and Qwen3.6 are hybrid models (offgrid keeps context checkpoints for them)
+// with thinking on by default, which the chat view doesn't show: it's turned off.
+const NO_THINKING = { enable_thinking: false };
+
+/** Standard: 4/5 on an agent benchmark, 5.9 GB with a 32k context and the code model. */
 export const CHAT_MODEL: KnownModel = {
-    label: "Qwen3 4B Instruct 2507 (Q4_K_M)",
-    short: "Qwen3 4B",
+    label: "Qwen3.5 4B (Q4_K_M)",
+    short: "Qwen3.5 4B",
     quant: "Q4_K_M",
-    file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
-    url: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
-    size: 2497281120,
-    sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
+    file: "Qwen3.5-4B-Q4_K_M.gguf",
+    url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf",
+    size: 2740937888,
+    sha256: "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+    chatTemplateKwargs: NO_THINKING,
 };
 
-/** Simple questions only. Most of a small model's memory is its context, hence 8k. */
+/** Tiny: simple questions; uses its tools but poorly. 8k context for CPU-only machines. */
 export const TINY_CHAT_MODEL: KnownModel = {
-    label: "Qwen3 0.6B (Q8_0)",
-    short: "Qwen3 0.6B",
+    label: "Qwen3.5 0.8B (Q8_0)",
+    short: "Qwen3.5 0.8B",
     quant: "Q8_0",
-    file: "Qwen3-0.6B-Q8_0.gguf",
-    url: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf",
-    size: 639446688,
-    sha256: "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    file: "Qwen3.5-0.8B-Q8_0.gguf",
+    url: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q8_0.gguf",
+    size: 811843840,
+    sha256: "0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c",
     contextSize: 8192,
-    chatTemplateKwargs: { enable_thinking: false },
+    chatTemplateKwargs: NO_THINKING,
 };
 
-/** For 6 GB GPUs. A hybrid model: thinking is off (the chat view doesn't show it). */
+/** Small: 4/5 on the agent benchmark (Qwen3 1.7B: 0/5) in 3.9 GB. */
 export const SMALL_CHAT_MODEL: KnownModel = {
-    label: "Qwen3 1.7B (Q4_K_M)",
-    short: "Qwen3 1.7B",
+    label: "Qwen3.5 2B (Q4_K_M)",
+    short: "Qwen3.5 2B",
     quant: "Q4_K_M",
-    file: "Qwen3-1.7B-Q4_K_M.gguf",
-    url: "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
-    size: 1107409472,
-    sha256: "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
-    chatTemplateKwargs: { enable_thinking: false },
+    file: "Qwen3.5-2B-Q4_K_M.gguf",
+    url: "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf",
+    size: 1280835840,
+    sha256: "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+    chatTemplateKwargs: NO_THINKING,
 };
 
-/** Much better in Agent mode, but 18.6 GB and only for 16 GB GPUs (experts partly on the CPU). */
+/** Large: 5/5 on the agent benchmark; 22 GB, experts partly on the CPU on a 16 GB GPU. */
 export const LARGE_CHAT_MODEL: KnownModel = {
-    label: "Qwen3-Coder 30B-A3B Instruct (Q4_K_M)",
-    short: "Qwen3-Coder 30B",
-    quant: "Q4_K_M",
-    file: "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
-    url: "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
-    size: 18556689568,
-    sha256: "fadc3e5f8d42bf7e894a785b05082e47daee4df26680389817e2093056f088ad",
+    label: "Qwen3.6 35B-A3B (UD-Q4_K_M)",
+    short: "Qwen3.6 35B",
+    quant: "UD-Q4_K_M",
+    file: "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+    url: "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+    size: 22134528992,
+    sha256: "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
+    chatTemplateKwargs: NO_THINKING,
     large: {
         gpuGiB: 16,
         ramGiB: 32,
-        expertLayersOnCpu: 24,
-        why: "Much better at Agent mode and code questions than Qwen3 4B; about 35 tokens/s on a 16 GB GPU",
+        expertLayersOnCpu: 28,
+        why: "The best in Agent mode; about 37 tokens/s on a 16 GB GPU",
     },
 };
 
 export const CHAT_MODELS = [TINY_CHAT_MODEL, SMALL_CHAT_MODEL, CHAT_MODEL, LARGE_CHAT_MODEL];
+
+/**
+ * Chat models of earlier versions: still recognized (thinking off, expert offload) and listed
+ * when downloaded, so switching back needs no download.
+ */
+export const OLDER_CHAT_MODELS: KnownModel[] = [
+    {
+        label: "Qwen3 0.6B (Q8_0)",
+        short: "Qwen3 0.6B",
+        quant: "Q8_0",
+        file: "Qwen3-0.6B-Q8_0.gguf",
+        url: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf",
+        size: 639446688,
+        sha256: "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+        contextSize: 8192,
+        chatTemplateKwargs: NO_THINKING,
+    },
+    {
+        label: "Qwen3 1.7B (Q4_K_M)",
+        short: "Qwen3 1.7B",
+        quant: "Q4_K_M",
+        file: "Qwen3-1.7B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
+        size: 1107409472,
+        sha256: "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+        chatTemplateKwargs: NO_THINKING,
+    },
+    {
+        label: "Qwen3 4B Instruct 2507 (Q4_K_M)",
+        short: "Qwen3 4B",
+        quant: "Q4_K_M",
+        file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+        size: 2497281120,
+        sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
+    },
+    {
+        label: "Qwen3-Coder 30B-A3B Instruct (Q4_K_M)",
+        short: "Qwen3-Coder 30B",
+        quant: "Q4_K_M",
+        file: "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
+        size: 18556689568,
+        sha256: "fadc3e5f8d42bf7e894a785b05082e47daee4df26680389817e2093056f088ad",
+        large: { gpuGiB: 16, ramGiB: 32, expertLayersOnCpu: 24, why: "About 35 tokens/s on a 16 GB GPU" },
+    },
+];
+
+/** The default chat model before 0.0.6 (Qwen3 4B): kept in use while nothing else is chosen. */
+const PREVIOUS_DEFAULT_CHAT = OLDER_CHAT_MODELS[2];
 
 /** A chat model and the code model, sized for a class of machine. */
 export interface Setup {
@@ -123,7 +180,7 @@ export const SETUPS: Setup[] = [
         name: "Tiny",
         chat: TINY_CHAT_MODEL,
         completion: TINY_COMPLETION_MODEL,
-        detail: "For machines without a dedicated GPU, or under 6 GB: fast code completion; chat for simple questions only",
+        detail: "For machines without a dedicated GPU, or under 6 GB: fast code completion; chat for simple questions",
         gpuGiB: 0,
         ramGiB: 4,
     },
@@ -131,7 +188,7 @@ export const SETUPS: Setup[] = [
         name: "Small",
         chat: SMALL_CHAT_MODEL,
         completion: COMPLETION_MODEL,
-        detail: "For 6 GB GPUs: code completion and chat; Agent mode runs but a 1.7B model is weak at it",
+        detail: "For 6 GB GPUs: code completion, chat and light Agent use",
         gpuGiB: 6,
         ramGiB: 8,
     },
@@ -139,7 +196,7 @@ export const SETUPS: Setup[] = [
         name: "Standard",
         chat: CHAT_MODEL,
         completion: COMPLETION_MODEL,
-        detail: "For 8 GB GPUs and up: code completion, chat and light Agent use",
+        detail: "For 8 GB GPUs and up: code completion, chat and Agent mode, better answers than Small",
         gpuGiB: 8,
         ramGiB: 16,
     },
@@ -170,8 +227,17 @@ export class Models {
         if (configured) {
             return existsSync(configured) ? configured : undefined;
         }
-        const file = path.join(this.dir, KNOWN[role].file);
+        const file = this.defaultFile(role);
         return existsSync(file) ? file : undefined;
+    }
+
+    /** The default model's file; for chat, the previous default while only that one is downloaded. */
+    private defaultFile(role: Role): string {
+        const file = path.join(this.dir, KNOWN[role].file);
+        if (role === "chat" && !existsSync(file) && this.downloaded(PREVIOUS_DEFAULT_CHAT)) {
+            return this.pathOf(PREVIOUS_DEFAULT_CHAT);
+        }
+        return file;
     }
 
     /** Whether `role` uses a custom path that doesn't exist (so downloading won't help). */
@@ -211,13 +277,13 @@ export class Models {
     /** The known model at `file`, if it is one (by file name), for naming it. */
     byPath(file: string): KnownModel | undefined {
         const name = path.basename(file);
-        return [...COMPLETION_MODELS, ...CHAT_MODELS].find((m) => m.file === name);
+        return [...COMPLETION_MODELS, ...CHAT_MODELS, ...OLDER_CHAT_MODELS].find((m) => m.file === name);
     }
 
     /** The chat model in use: the configured file, or the default one. */
     chatFile(): string {
         const configured = vscode.workspace.getConfiguration("offgrid").get<string>("chat.model", "").trim();
-        return configured || this.pathOf(CHAT_MODEL);
+        return configured || this.defaultFile("chat");
     }
 
     /** Download `model` (or the default for a role) with progress; verifies size and SHA-256. */
