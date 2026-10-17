@@ -23,7 +23,7 @@ llama.cpp on any GPU (Vulkan: AMD, NVIDIA, Intel) and falls back to the CPU.
 
    | Setup | Chat model | Download | For |
    |---|---|---|---|
-   | **Small** | Qwen3 1.7B | 2.6 GB | 6 GB GPUs and CPU-only machines: code completion and Ask mode |
+   | **Small** | Qwen3 1.7B | 2.6 GB | 6 GB GPUs and CPU-only machines: code completion and chat (5.2 GB on an RTX 3060 6 GB) |
    | **Standard** | Qwen3 4B | 3.9 GB | 8 GB GPUs and up: also light Agent use |
    | **Large** | Qwen3-Coder 30B | 18.8 GB | 16 GB GPUs with 32 GB RAM: the best in Agent mode |
 
@@ -54,16 +54,15 @@ use models you already have, run **offgrid: Set Up Models** and pick your GGUF f
 **offgrid: Set Up Models** switches between setups at any time; downloaded models stay, so
 switching back needs no download. Large's model doesn't fit a 16 GB GPU, but as a
 Mixture-of-Experts model it keeps part of its expert weights in RAM (`offgrid.chat.expertLayersOnCpu`,
-set for you); on an RX 9070 XT it runs at about 35 tokens/s with a 32k context. Small runs its
-chat model with a 16k context, which is too little for Agent mode's prompt.
+set for you); on an RX 9070 XT it runs at about 35 tokens/s with a 32k context.
 
 Any other GGUF model works too (*Use a GGUF file for chat* / *for code completion*).
 
 ## Requirements
 
 - Linux x86_64 (glibc 2.28+) or Windows x86_64
-- About 7 GB of free GPU memory for both models at the default context sizes, or a recent CPU
-  (slower). Lower `offgrid.chat.contextSize` for smaller GPUs; Ask mode works with 8192.
+- A GPU with 6 GB or more (Small fits in about 5.2 GB), or a recent CPU (slower). Set Up Models
+  says which setup fits.
 
 ## Known limitations
 

@@ -91,12 +91,18 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
             if (!res.ok || !res.body) {
                 throw new Error(explain(await res.text(), res.status));
             }
+            let answered = false;
+            let reasoning = 0; // characters of thinking, which the chat view can't show
+            let finish: string | undefined;
             for await (const event of sse(res.body)) {
                 if (event.error) {
                     throw new Error(`offgrid: ${event.error.message}`);
                 }
                 const delta = event.choices?.[0]?.delta;
+                finish = event.choices?.[0]?.finish_reason ?? finish;
+                reasoning += delta?.reasoning_content?.length ?? 0;
                 if (delta?.content) {
+                    answered = true;
                     progress.report(new vscode.LanguageModelTextPart(delta.content));
                 }
                 for (const call of delta?.tool_calls ?? []) {
@@ -107,8 +113,17 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
                     } catch {
                         this.log.warn(`tool call with invalid JSON arguments: ${call.function?.arguments}`);
                     }
+                    answered = true;
                     progress.report(new vscode.LanguageModelToolCallPart(call.id, call.function.name, input));
                 }
+            }
+            if (!answered && !token.isCancellationRequested) {
+                // VS Code would only say "No response was returned".
+                throw new Error(
+                    reasoning > 0
+                        ? `The model only thought (${reasoning} characters of reasoning, ${finish === "length" ? "until it ran out of tokens" : "then stopped"}) and gave no answer. A thinking model needs its thinking turned off here; add /no_think to the message, or use a non-thinking model.`
+                        : "The model returned an empty answer.",
+                );
             }
         } catch (e) {
             if (abort.signal.aborted) {
@@ -177,8 +192,10 @@ function resultText(content: readonly unknown[]): string {
 interface ChunkEvent {
     error?: { message: string };
     choices?: {
+        finish_reason?: string | null;
         delta?: {
             content?: string;
+            reasoning_content?: string;
             tool_calls?: { id: string; function: { name: string; arguments?: string } }[];
         };
     }[];
@@ -222,7 +239,7 @@ function explain(body: string, status: number): string {
         const suggest = 2 ** Math.ceil(Math.log2(needed + MAX_OUTPUT_TOKENS));
         return (
             `This request needs ${needed} tokens but the offgrid chat model's context holds ${overflow[2]}. ` +
-            `Agent mode sends a long prompt with its tools: use Ask mode, or set offgrid.chat.contextSize ` +
+            `Agent mode sends a long prompt with its tools: use Ask mode if your VS Code has it, or set offgrid.chat.contextSize ` +
             `to ${suggest} (needs more GPU memory).`
         );
     }

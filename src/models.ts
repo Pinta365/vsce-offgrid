@@ -58,7 +58,6 @@ export const SMALL_CHAT_MODEL: KnownModel = {
     url: "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
     size: 1107409472,
     sha256: "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
-    contextSize: 16384,
     chatTemplateKwargs: { enable_thinking: false },
 };
 
@@ -96,14 +95,14 @@ export const SETUPS: Setup[] = [
     {
         name: "Small",
         chat: SMALL_CHAT_MODEL,
-        detail: "For 6 GB GPUs and CPU-only machines: code completion and Ask mode; too small for Agent mode",
+        detail: "For 6 GB GPUs and CPU-only machines: code completion and chat; Agent mode runs but a 1.7B model is weak at it",
         gpuGiB: 0,
         ramGiB: 8,
     },
     {
         name: "Standard",
         chat: CHAT_MODEL,
-        detail: "For 8 GB GPUs and up: code completion, Ask mode and light Agent use",
+        detail: "For 8 GB GPUs and up: code completion, chat and light Agent use",
         gpuGiB: 8,
         ramGiB: 16,
     },

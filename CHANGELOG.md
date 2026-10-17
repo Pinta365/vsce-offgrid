@@ -10,6 +10,8 @@
 
 ### Fixed
 - When Windows blocks the (unsigned) server, say so instead of "spawn UNKNOWN"
+- A reply without text or tool calls (e.g. a thinking model that only thought) is explained instead of
+  VS Code's "No response was returned"
 
 ## [0.0.2] - 2026-10-16
 
