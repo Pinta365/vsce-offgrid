@@ -39,6 +39,19 @@ export const COMPLETION_MODEL: KnownModel = {
     sha256: "29871c94d15727a6e243f79a37113d4ae625a6215b5e800bf41a23af2da32832",
 };
 
+/** For machines without a dedicated GPU: several times faster than the 1.5B on a CPU. */
+export const TINY_COMPLETION_MODEL: KnownModel = {
+    label: "Qwen2.5-Coder 0.5B (Q8_0)",
+    short: "Qwen2.5-Coder 0.5B",
+    quant: "Q8_0",
+    file: "qwen2.5-coder-0.5b-q8_0.gguf",
+    url: "https://huggingface.co/ggml-org/Qwen2.5-Coder-0.5B-Q8_0-GGUF/resolve/main/qwen2.5-coder-0.5b-q8_0.gguf",
+    size: 531068128,
+    sha256: "d0f8cd6c49bab52a0abdbe47948518b1f4d9b1a8a2a6825099cea31cea10ac56",
+};
+
+export const COMPLETION_MODELS = [TINY_COMPLETION_MODEL, COMPLETION_MODEL];
+
 export const CHAT_MODEL: KnownModel = {
     label: "Qwen3 4B Instruct 2507 (Q4_K_M)",
     short: "Qwen3 4B",
@@ -49,7 +62,20 @@ export const CHAT_MODEL: KnownModel = {
     sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
 };
 
-/** For 6 GB GPUs and CPU-only machines. A hybrid model: thinking is off (the chat view doesn't show it). */
+/** Simple questions only. Most of a small model's memory is its context, hence 8k. */
+export const TINY_CHAT_MODEL: KnownModel = {
+    label: "Qwen3 0.6B (Q8_0)",
+    short: "Qwen3 0.6B",
+    quant: "Q8_0",
+    file: "Qwen3-0.6B-Q8_0.gguf",
+    url: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf",
+    size: 639446688,
+    sha256: "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    contextSize: 8192,
+    chatTemplateKwargs: { enable_thinking: false },
+};
+
+/** For 6 GB GPUs. A hybrid model: thinking is off (the chat view doesn't show it). */
 export const SMALL_CHAT_MODEL: KnownModel = {
     label: "Qwen3 1.7B (Q4_K_M)",
     short: "Qwen3 1.7B",
@@ -78,12 +104,13 @@ export const LARGE_CHAT_MODEL: KnownModel = {
     },
 };
 
-export const CHAT_MODELS = [SMALL_CHAT_MODEL, CHAT_MODEL, LARGE_CHAT_MODEL];
+export const CHAT_MODELS = [TINY_CHAT_MODEL, SMALL_CHAT_MODEL, CHAT_MODEL, LARGE_CHAT_MODEL];
 
 /** A chat model and the code model, sized for a class of machine. */
 export interface Setup {
     name: string;
     chat: KnownModel;
+    completion: KnownModel;
     /** Who it's for and what works, for the setup list. */
     detail: string;
     /** GPU memory it needs, in GiB (0: also runs on the CPU). */
@@ -93,15 +120,25 @@ export interface Setup {
 
 export const SETUPS: Setup[] = [
     {
+        name: "Tiny",
+        chat: TINY_CHAT_MODEL,
+        completion: TINY_COMPLETION_MODEL,
+        detail: "For machines without a dedicated GPU, or under 6 GB: fast code completion; chat for simple questions only",
+        gpuGiB: 0,
+        ramGiB: 4,
+    },
+    {
         name: "Small",
         chat: SMALL_CHAT_MODEL,
-        detail: "For 6 GB GPUs and CPU-only machines: code completion and chat; Agent mode runs but a 1.7B model is weak at it",
-        gpuGiB: 0,
+        completion: COMPLETION_MODEL,
+        detail: "For 6 GB GPUs: code completion and chat; Agent mode runs but a 1.7B model is weak at it",
+        gpuGiB: 6,
         ramGiB: 8,
     },
     {
         name: "Standard",
         chat: CHAT_MODEL,
+        completion: COMPLETION_MODEL,
         detail: "For 8 GB GPUs and up: code completion, chat and light Agent use",
         gpuGiB: 8,
         ramGiB: 16,
@@ -109,6 +146,7 @@ export const SETUPS: Setup[] = [
     {
         name: "Large",
         chat: LARGE_CHAT_MODEL,
+        completion: COMPLETION_MODEL,
         detail: "For 16 GB GPUs with 32 GB RAM: the best in Agent mode; runs part of the model on the CPU",
         gpuGiB: 16,
         ramGiB: 32,
@@ -173,7 +211,7 @@ export class Models {
     /** The known model at `file`, if it is one (by file name), for naming it. */
     byPath(file: string): KnownModel | undefined {
         const name = path.basename(file);
-        return [COMPLETION_MODEL, ...CHAT_MODELS].find((m) => m.file === name);
+        return [...COMPLETION_MODELS, ...CHAT_MODELS].find((m) => m.file === name);
     }
 
     /** The chat model in use: the configured file, or the default one. */

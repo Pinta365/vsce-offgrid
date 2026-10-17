@@ -23,11 +23,12 @@ llama.cpp on any GPU (Vulkan: AMD, NVIDIA, Intel) and falls back to the CPU.
 
    | Setup | Chat model | Download | For |
    |---|---|---|---|
-   | **Small** | Qwen3 1.7B | 2.6 GB | 6 GB GPUs and CPU-only machines: code completion and chat (5.2 GB on an RTX 3060 6 GB) |
+   | **Tiny** | Qwen3 0.6B | 1.1 GB | No dedicated GPU, or under 6 GB: fast code completion (Qwen2.5-Coder 0.5B); chat for simple questions only |
+   | **Small** | Qwen3 1.7B | 2.6 GB | 6 GB GPUs: code completion and chat (5.2 GB on an RTX 3060 6 GB) |
    | **Standard** | Qwen3 4B | 3.9 GB | 8 GB GPUs and up: also light Agent use |
    | **Large** | Qwen3-Coder 30B | 18.8 GB | 16 GB GPUs with 32 GB RAM: the best in Agent mode |
 
-   All three use Qwen2.5-Coder 1.5B for code completion.
+   Small, Standard and Large use Qwen2.5-Coder 1.5B for code completion.
 2. Start typing. The status bar shows **offgrid** with the time of the last completion; click it
    for options.
 

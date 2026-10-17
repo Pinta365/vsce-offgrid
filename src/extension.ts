@@ -3,7 +3,18 @@ import { ChatProvider } from "./chat";
 import { CompletionProvider } from "./completion";
 import * as os from "os";
 import * as path from "path";
-import { CHAT_MODEL, CHAT_MODELS, COMPLETION_MODEL, KnownModel, Models, Role, SETUPS, Setup } from "./models";
+import {
+    CHAT_MODEL,
+    CHAT_MODELS,
+    COMPLETION_MODEL,
+    COMPLETION_MODELS,
+    KnownModel,
+    Models,
+    Role,
+    SETUPS,
+    Setup,
+    TINY_COMPLETION_MODEL,
+} from "./models";
 import { GPU_MEMORY_KEY, Server, State } from "./server";
 
 /** globalState key: the user chose "Not Now" in the first-run prompt. */
@@ -169,18 +180,25 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
         return true;
     };
     /**
-     * Make `model` the chat model. Changed settings restart the server (once, debounced); if
-     * nothing changed, restart here so newly downloaded models load.
+     * Make these the chat and/or code completion models. Changed settings restart the server
+     * (once, debounced); if nothing changed, restart here so newly downloaded models load.
      */
-    const useChat = async (model: KnownModel) => {
+    const useModels = async (chatModel?: KnownModel, completion?: KnownModel) => {
         const gpu = context.globalState.get<number>(GPU_MEMORY_KEY);
-        // A GPU big enough for the whole model doesn't need experts on the CPU.
-        const experts = model.large && !(gpu && gpu >= model.large.gpuGiB * 1.5) ? model.large.expertLayersOnCpu : undefined;
-        const wanted: [string, unknown][] = [
-            ["chat.model", model === CHAT_MODEL ? undefined : models.pathOf(model)],
-            ["chat.expertLayersOnCpu", experts],
-            ["chat.contextSize", model.contextSize],
-        ];
+        const wanted: [string, unknown][] = [];
+        if (chatModel) {
+            // A GPU big enough for the whole model doesn't need experts on the CPU.
+            const experts =
+                chatModel.large && !(gpu && gpu >= chatModel.large.gpuGiB * 1.5) ? chatModel.large.expertLayersOnCpu : undefined;
+            wanted.push(
+                ["chat.model", chatModel === CHAT_MODEL ? undefined : models.pathOf(chatModel)],
+                ["chat.expertLayersOnCpu", experts],
+                ["chat.contextSize", chatModel.contextSize],
+            );
+        }
+        if (completion) {
+            wanted.push(["completion.model", completion === COMPLETION_MODEL ? undefined : models.pathOf(completion)]);
+        }
         const changes = wanted.filter(([key, value]) => cfg().inspect(key)?.globalValue !== value);
         for (const [key, value] of changes) {
             await cfg().update(key, value, vscode.ConfigurationTarget.Global);
@@ -243,13 +261,16 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
     const picks: Pick[] = [section("Setups: a chat model and the code model, downloaded together")];
     for (const setup of SETUPS) {
         const chatModel = setup.chat;
-        const inUse = current === models.pathOf(chatModel) && models.downloaded(chatModel) && !!completionModel;
-        const missing = [COMPLETION_MODEL, chatModel].filter((m) => !models.downloaded(m) && (m !== COMPLETION_MODEL || !completionModel));
+        const inUse =
+            current === models.pathOf(chatModel) &&
+            models.downloaded(chatModel) &&
+            completionModel === models.pathOf(setup.completion);
+        const missing = [setup.completion, chatModel].filter((m) => !models.downloaded(m));
         const size = missing.reduce((n, m) => n + m.size, 0);
         picks.push({
             label: `${inUse ? "$(check)" : !fits(setup) ? "$(warning)" : missing.length ? "$(cloud-download)" : "$(arrow-right)"} ${setup.name}`,
             description: [
-                `${chatModel.short} + ${COMPLETION_MODEL.short}`,
+                `${chatModel.short} + ${setup.completion.short}`,
                 inUse ? "in use" : missing.length ? gb(size) : "downloaded",
                 setup === recommended && !inUse ? "recommended" : "",
             ]
@@ -261,7 +282,7 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
                 ? undefined
                 : async () => {
                       if ((await confirm(setup, setup.name, size)) && (missing.length === 0 || (await download(missing, false)))) {
-                          await useChat(chatModel);
+                          await useModels(chatModel, setup.completion);
                       }
                   },
         });
@@ -289,17 +310,25 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
     /** The second level: each model on its own. */
     async function chooseModels() {
         const items: Pick[] = [section("Code completion")];
-        items.push(
-            completionModel
-                ? { label: `$(check) ${completionName}`, description: "in use for code completion", detail: models.byPath(completionModel) ? undefined : completionModel }
-                : {
-                      label: `$(cloud-download) Download ${COMPLETION_MODEL.short}`,
-                      description: `${gb(COMPLETION_MODEL.size)} · ${COMPLETION_MODEL.quant}`,
-                      detail: "Runs on any machine.",
-                      action: () => download(["completion"]),
-                  },
-            { label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") },
-        );
+        if (completionModel && !COMPLETION_MODELS.some((m) => models.pathOf(m) === completionModel)) {
+            items.push({ label: `$(check) ${completionName}`, description: "in use for code completion (your file)", detail: completionModel });
+        }
+        for (const model of COMPLETION_MODELS) {
+            const note = model === TINY_COMPLETION_MODEL ? "Fastest; for machines without a dedicated GPU." : "Better suggestions; best with a GPU.";
+            if (completionModel === models.pathOf(model)) {
+                items.push({ label: `$(check) ${model.short}`, description: "in use for code completion", detail: note });
+            } else if (models.downloaded(model)) {
+                items.push({ label: `$(arrow-right) Use ${model.short} for code completion`, description: "downloaded", detail: note, action: () => useModels(undefined, model) });
+            } else {
+                items.push({
+                    label: `$(cloud-download) Download ${model.short} for code completion`,
+                    description: `${gb(model.size)} · ${model.quant}`,
+                    detail: note,
+                    action: async () => (await download([model], false)) && useModels(undefined, model),
+                });
+            }
+        }
+        items.push({ label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") });
 
         items.push(section("Chat"));
         if (!CHAT_MODELS.some((m) => models.pathOf(m) === current)) {
@@ -314,7 +343,7 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
                     label: `$(arrow-right) Use ${model.short} for chat`,
                     description: "downloaded",
                     detail: `${fitText(setup)}.`,
-                    action: async () => (await confirm(setup, model.short, 0)) && useChat(model),
+                    action: async () => (await confirm(setup, model.short, 0)) && useModels(model),
                 });
             } else {
                 items.push({
@@ -323,7 +352,7 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
                     detail: `${fitText(setup)}.`,
                     action: async () => {
                         if ((await confirm(setup, model.short, model.size)) && (await download([model], false))) {
-                            await useChat(model);
+                            await useModels(model);
                         }
                     },
                 });

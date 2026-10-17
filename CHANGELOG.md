@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Tiny setup (Qwen3 0.6B chat, Qwen2.5-Coder 0.5B code completion, ~1.1 GB) for machines without a
+  dedicated GPU or with less than 6 GB; recommended there instead of Small
+
 ### Changed
 - Set Up Models offers either a setup (chat + code model together) or *Choose models one by one*, where chat
   models can be downloaded on their own too, with the same fit check
