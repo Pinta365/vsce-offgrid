@@ -66,6 +66,9 @@ Any other GGUF model works too (*Use a GGUF file for chat* / *for code completio
 
 ## Known limitations
 
+- Use **Local** chat sessions. Copilot CLI sessions send a much larger built-in prompt (instructions
+  and tools) than local models' contexts hold, so they stop with "No response was returned" before
+  reaching the model.
 - Small local models are much weaker than cloud models, especially in Agent mode.
 - Completion only triggers at the end of a line (or before closing brackets and quotes).
 

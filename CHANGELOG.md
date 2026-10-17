@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- The offgrid log shows each chat request: its size, whether it was answered, thinking, timing, and
+  cancellation
+
+### Documentation
+- Use Local chat sessions: Copilot CLI sessions need more context than local models have
+
 ## [0.0.3] - 2026-10-17
 
 ### Added
