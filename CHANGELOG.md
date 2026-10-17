@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- Set Up Models offers either a setup (chat + code model together) or *Choose models one by one*, where chat
+  models can be downloaded on their own too, with the same fit check
+
 ## [0.0.4] - 2026-10-17
 
 ### Added

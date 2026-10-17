@@ -209,23 +209,45 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
     // The biggest setup that fits, except Large: heavy enough that it's always a deliberate choice.
     const recommended = gpu === undefined ? undefined : [...SETUPS].reverse().find((s) => s.name !== "Large" && fits(s));
 
+    const fitText = (s: Setup) =>
+        gpu === undefined && s.gpuGiB > 0
+            ? `$(question) Needs a ${s.gpuGiB} GB GPU (${machine})`
+            : fits(s)
+              ? `$(check) Fits this machine (${machine})`
+              : `$(warning) Too large for this machine (${machine})`;
+    /** For a large or too-large choice: say what it needs, and let the user back out. */
+    const confirm = async (s: Setup, what: string, size: number) => {
+        if (!s.chat.large && fits(s)) {
+            return true;
+        }
+        const need = `${s.gpuGiB ? `a GPU with at least ${s.gpuGiB} GB of memory and ` : ""}${s.ramGiB} GB of RAM`;
+        const go = await vscode.window.showWarningMessage(
+            `${what} needs ${need}${size ? ` and downloads ${gb(size)}` : ""}.`,
+            {
+                modal: true,
+                detail:
+                    (s.chat.large ? "While it is loaded it uses almost all of the GPU's memory, so close other GPU-heavy programs. " : "") +
+                    (fits(s) ? "" : `This machine has ${machine}: it would run very slowly or not load at all. `) +
+                    "You can switch in this list at any time.",
+            },
+            size ? "Download" : "Use It",
+        );
+        return go !== undefined;
+    };
+
     const current = models.chatFile();
     const completionModel = models.resolve("completion");
-    const picks: Pick[] = [section("Setups")];
+    const chatName = models.byPath(current)?.short ?? path.basename(current);
+    const completionName = completionModel ? (models.byPath(completionModel)?.short ?? path.basename(completionModel)) : "none";
+
+    const picks: Pick[] = [section("Setups: a chat model and the code model, downloaded together")];
     for (const setup of SETUPS) {
         const chatModel = setup.chat;
         const inUse = current === models.pathOf(chatModel) && models.downloaded(chatModel) && !!completionModel;
         const missing = [COMPLETION_MODEL, chatModel].filter((m) => !models.downloaded(m) && (m !== COMPLETION_MODEL || !completionModel));
         const size = missing.reduce((n, m) => n + m.size, 0);
-        const ok = fits(setup);
-        const fit =
-            gpu === undefined && setup.gpuGiB > 0
-                ? `$(question) Needs a ${setup.gpuGiB} GB GPU (${machine})`
-                : ok
-                  ? `$(check) Fits this machine (${machine})`
-                  : `$(warning) Too large for this machine (${machine})`;
         picks.push({
-            label: `${inUse ? "$(check)" : !ok ? "$(warning)" : missing.length ? "$(cloud-download)" : "$(arrow-right)"} ${setup.name}`,
+            label: `${inUse ? "$(check)" : !fits(setup) ? "$(warning)" : missing.length ? "$(cloud-download)" : "$(arrow-right)"} ${setup.name}`,
             description: [
                 `${chatModel.short} + ${COMPLETION_MODEL.short}`,
                 inUse ? "in use" : missing.length ? gb(size) : "downloaded",
@@ -234,61 +256,23 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
                 .filter(Boolean)
                 .join(" · "),
             // The fit first: VS Code cuts long details off.
-            detail: `${fit}. ${setup.detail}.`,
+            detail: `${fitText(setup)}. ${setup.detail}.`,
             action: inUse
                 ? undefined
                 : async () => {
-                      if (chatModel.large || !ok) {
-                          const need = `${setup.gpuGiB ? `a GPU with at least ${setup.gpuGiB} GB of memory and ` : ""}${setup.ramGiB} GB of RAM`;
-                          const go = await vscode.window.showWarningMessage(
-                              `${setup.name} needs ${need}${size ? ` and downloads ${gb(size)}` : ""}.`,
-                              {
-                                  modal: true,
-                                  detail:
-                                      (chatModel.large ? "While it is loaded it uses almost all of the GPU's memory, so close other GPU-heavy programs. " : "") +
-                                      (ok ? "" : `This machine has ${machine}: it would run very slowly or not load at all. `) +
-                                      "You can switch setups in this list at any time.",
-                              },
-                              missing.length ? "Download" : "Use It",
-                          );
-                          if (!go) {
-                              return;
-                          }
-                      }
-                      if (missing.length === 0 || (await download(missing, false))) {
+                      if ((await confirm(setup, setup.name, size)) && (missing.length === 0 || (await download(missing, false)))) {
                           await useChat(chatModel);
                       }
                   },
         });
     }
-
-    picks.push(section("Code completion"));
-    picks.push(
-        completionModel
-            ? { label: `$(check) ${models.byPath(completionModel)?.short ?? completionModel}`, description: "in use" }
-            : {
-                  label: `$(cloud-download) Download ${COMPLETION_MODEL.short}`,
-                  description: `${gb(COMPLETION_MODEL.size)} · ${COMPLETION_MODEL.quant}`,
-                  action: () => download(["completion"]),
-              },
-        { label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") },
-    );
-
-    picks.push(section("Chat"));
-    if (!CHAT_MODELS.some((m) => models.pathOf(m) === current)) {
-        picks.push({ label: `$(check) ${path.basename(current)}`, description: "in use for chat (your file)", detail: current });
-    }
-    // Downloaded chat models: the one in use, or one click to switch to it.
-    for (const model of CHAT_MODELS.filter((m) => models.downloaded(m))) {
-        picks.push(
-            current === models.pathOf(model)
-                ? { label: `$(check) ${model.short}`, description: "in use for chat" }
-                : { label: `$(arrow-right) Use ${model.short} for chat`, description: "downloaded", action: () => useChat(model) },
-        );
-    }
-    picks.push({ label: "$(folder-opened) Use a GGUF file for chat…", action: () => pickFile("chat", "chat") });
-
-    picks.push(section("Server"));
+    picks.push(section("Or"));
+    picks.push({
+        label: "$(list-unordered) Choose models one by one…",
+        description: `chat: ${chatName} · code completion: ${completionName}`,
+        detail: "Download or switch the chat and code completion models separately, or use your own GGUF files.",
+        action: () => chooseModels(),
+    });
     picks.push({
         label: "$(file-binary) Use an offgrid-server binary…",
         description: cfg().get<string>("serverPath", "") || "bundled",
@@ -299,8 +283,56 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
             }
         },
     });
-    const pick = await vscode.window.showQuickPick(picks, { title: "offgrid: models and server" });
+    const pick = await vscode.window.showQuickPick(picks, { title: "offgrid: set up" });
     await pick?.action?.();
+
+    /** The second level: each model on its own. */
+    async function chooseModels() {
+        const items: Pick[] = [section("Code completion")];
+        items.push(
+            completionModel
+                ? { label: `$(check) ${completionName}`, description: "in use for code completion", detail: models.byPath(completionModel) ? undefined : completionModel }
+                : {
+                      label: `$(cloud-download) Download ${COMPLETION_MODEL.short}`,
+                      description: `${gb(COMPLETION_MODEL.size)} · ${COMPLETION_MODEL.quant}`,
+                      detail: "Runs on any machine.",
+                      action: () => download(["completion"]),
+                  },
+            { label: "$(folder-opened) Use a GGUF file for code completion…", action: () => pickFile("completion", "code completion") },
+        );
+
+        items.push(section("Chat"));
+        if (!CHAT_MODELS.some((m) => models.pathOf(m) === current)) {
+            items.push({ label: `$(check) ${path.basename(current)}`, description: "in use for chat (your file)", detail: current });
+        }
+        for (const model of CHAT_MODELS) {
+            const setup = SETUPS.find((s) => s.chat === model)!;
+            if (current === models.pathOf(model) && models.downloaded(model)) {
+                items.push({ label: `$(check) ${model.short}`, description: "in use for chat" });
+            } else if (models.downloaded(model)) {
+                items.push({
+                    label: `$(arrow-right) Use ${model.short} for chat`,
+                    description: "downloaded",
+                    detail: `${fitText(setup)}.`,
+                    action: async () => (await confirm(setup, model.short, 0)) && useChat(model),
+                });
+            } else {
+                items.push({
+                    label: `${fits(setup) ? "$(cloud-download)" : "$(warning)"} Download ${model.short} for chat`,
+                    description: `${gb(model.size)} · ${model.quant}`,
+                    detail: `${fitText(setup)}.`,
+                    action: async () => {
+                        if ((await confirm(setup, model.short, model.size)) && (await download([model], false))) {
+                            await useChat(model);
+                        }
+                    },
+                });
+            }
+        }
+        items.push({ label: "$(folder-opened) Use a GGUF file for chat…", action: () => pickFile("chat", "chat") });
+        const choice = await vscode.window.showQuickPick(items, { title: "offgrid: choose models one by one" });
+        await choice?.action?.();
+    }
 }
 
 /** Back to a fresh install: settings, remembered state, and optionally the downloaded models. */
