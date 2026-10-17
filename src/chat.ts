@@ -57,6 +57,13 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
         progress: vscode.Progress<vscode.LanguageModelResponsePart>,
         token: vscode.CancellationToken,
     ): Promise<void> {
+        const started = Date.now();
+        const secs = () => `${((Date.now() - started) / 1000).toFixed(1)} s`;
+        const promptChars = messages.reduce((n, m) => n + JSON.stringify(toOpenAi([m])).length, 0);
+        this.log.info(
+            `chat request: ${messages.length} messages (~${Math.round(promptChars / 4)} tokens), ${options.tools?.length ?? 0} tools`,
+        );
+        token.onCancellationRequested(() => this.log.info(`chat request cancelled by VS Code after ${secs()}`));
         const endpoint = await this.server.ensure();
         if (!endpoint?.chat) {
             throw new Error("the offgrid chat model isn't running; see “offgrid: Show Log”");
@@ -117,6 +124,11 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
                     progress.report(new vscode.LanguageModelToolCallPart(call.id, call.function.name, input));
                 }
             }
+            this.log.info(
+                `chat answer after ${secs()}: ${answered ? "answered" : "nothing"}` +
+                    (reasoning ? `, ${reasoning} characters of thinking` : "") +
+                    `, finish ${finish ?? "?"}`,
+            );
             if (!answered && !token.isCancellationRequested) {
                 // VS Code would only say "No response was returned".
                 throw new Error(
@@ -132,6 +144,7 @@ export class ChatProvider implements vscode.LanguageModelChatProvider {
             if (isConnectionError(e)) {
                 this.server.lost();
             }
+            this.log.warn(`chat request failed after ${secs()}: ${e instanceof Error ? e.message : e}`);
             throw e;
         } finally {
             sub.dispose();
