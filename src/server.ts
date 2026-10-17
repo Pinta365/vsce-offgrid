@@ -303,7 +303,7 @@ export class Server implements vscode.Disposable {
         lines(child.stdout!, onLine);
         lines(child.stderr!, onLine);
         const exited = new Promise<never>((_, reject) => {
-            child.once("error", (e) => reject(new Error(`could not start offgrid-server: ${e.message}`)));
+            child.once("error", (e) => reject(new Error(startError(e, launch.binary))));
             child.once("exit", (code, signal) => {
                 if (this.child === child) {
                     this.child = undefined;
@@ -346,6 +346,20 @@ export class Server implements vscode.Disposable {
 function parseDevice(line: string): { description: string; dedicated: boolean; gib?: number } | undefined {
     const m = /device (\S+) \((Gpu|Igpu)\): (.*?)(?: \(([\d.]+) GiB\))?$/.exec(line);
     return m ? { description: m[3], dedicated: m[2] === "Gpu", gib: m[4] ? Number(m[4]) : undefined } : undefined;
+}
+
+/** Why the OS refused to start the server, in words a user can act on. */
+function startError(e: NodeJS.ErrnoException, binary: string): string {
+    // Windows' Smart App Control and Defender block unsigned programs; Node reports those
+    // refusals as UNKNOWN (or EPERM/EACCES).
+    if (process.platform === "win32" && ["UNKNOWN", "EPERM", "EACCES"].includes(e.code ?? "")) {
+        return (
+            `Windows blocked offgrid-server (${e.code}). Smart App Control or Microsoft Defender blocks ` +
+            `programs that aren't signed, and offgrid's aren't yet. Check Windows Security → Protection ` +
+            `history or App & browser control, or set offgrid.serverPath to a copy Windows allows. (${binary})`
+        );
+    }
+    return `could not start offgrid-server: ${e.message}`;
 }
 
 /** Headers for a request to `endpoint`. */

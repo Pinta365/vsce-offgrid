@@ -65,7 +65,7 @@ try {
   const server = join(root, "server");
   rmSync(server, { recursive: true, force: true });
   // Keep the package layout (bin/ and lib/: RPATHs and DLL lookup depend on it), minus the C ABI.
-  const skip = /^(liboffgrid\.(so|dylib)|offgrid\.(dll|lib)|liboffgrid\.dll\.a)$/;
+  const skip = /^(liboffgrid\.(so|dylib)|offgrid\.(dll|lib|def)|liboffgrid\.dll\.a)$/;
   for (const sub of ["bin", "lib"]) {
     if (existsSync(join(dir, sub))) {
       cpSync(join(dir, sub), join(server, sub), { recursive: true, filter: (src) => !skip.test(basename(src)) });

@@ -8,6 +8,9 @@
   The GPU is read from offgrid-server's device list on first setup.
 - Hybrid thinking models (Qwen3 1.7B) run with thinking off, as the chat view doesn't show it
 
+### Fixed
+- When Windows blocks the (unsigned) server, say so instead of "spawn UNKNOWN"
+
 ## [0.0.2] - 2026-10-16
 
 ### Added
