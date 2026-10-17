@@ -336,14 +336,14 @@ async function setup(context: vscode.ExtensionContext, models: Models, server: S
             items.push({ label: `$(check) ${path.basename(current)}`, description: "in use for chat (your file)", detail: current });
         }
         for (const model of [...CHAT_MODELS, ...OLDER_CHAT_MODELS.filter((m) => models.downloaded(m))]) {
-            // What it needs: its setup's requirements, or (older models) its own.
+            // What it needs: its setup's requirements, or the model's own.
             const setup = SETUPS.find((s) => s.chat === model) ?? {
                 name: model.short,
                 chat: model,
                 completion: COMPLETION_MODEL,
                 detail: "",
-                gpuGiB: model.large?.gpuGiB ?? 0,
-                ramGiB: model.large?.ramGiB ?? 8,
+                gpuGiB: model.needs?.gpuGiB ?? model.large?.gpuGiB ?? 0,
+                ramGiB: model.needs?.ramGiB ?? model.large?.ramGiB ?? 8,
             };
             if (current === models.pathOf(model) && models.downloaded(model)) {
                 items.push({ label: `$(check) ${model.short}`, description: "in use for chat" });

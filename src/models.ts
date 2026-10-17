@@ -18,6 +18,8 @@ export interface KnownModel {
     contextSize?: number;
     /** Sent with every chat request, e.g. to turn a hybrid model's thinking off. */
     chatTemplateKwargs?: Record<string, unknown>;
+    /** What it needs, for models outside a setup (setups state their own). */
+    needs?: { gpuGiB: number; ramGiB: number };
     /** Set for models that only run well on big machines. */
     large?: {
         gpuGiB: number;
@@ -111,7 +113,20 @@ export const LARGE_CHAT_MODEL: KnownModel = {
     },
 };
 
-export const CHAT_MODELS = [TINY_CHAT_MODEL, SMALL_CHAT_MODEL, CHAT_MODEL, LARGE_CHAT_MODEL];
+/** An alternative to Standard: as good on the agent benchmark (4/5, no bad calls), faster, and new
+ * chats reuse the cache without checkpoints; 0.8 GB more GPU memory. Not hybrid, no thinking flag. */
+export const GEMMA_CHAT_MODEL: KnownModel = {
+    label: "Gemma 4 E4B (Q4_K_M)",
+    short: "Gemma 4 E4B",
+    quant: "Q4_K_M",
+    file: "gemma-4-E4B-it-Q4_K_M.gguf",
+    url: "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+    size: 4977171584,
+    sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
+    needs: { gpuGiB: 8, ramGiB: 16 },
+};
+
+export const CHAT_MODELS = [TINY_CHAT_MODEL, SMALL_CHAT_MODEL, CHAT_MODEL, GEMMA_CHAT_MODEL, LARGE_CHAT_MODEL];
 
 /**
  * Chat models of earlier versions: still recognized (thinking off, expert offload) and listed

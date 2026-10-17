@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Gemma 4 E4B as a chat model under *Choose models one by one* (8 GB GPUs): as good as Qwen3.5 4B on the
+  agent benchmark, faster, with no bad tool calls. Bundles offgrid 0.4.2, which parses Gemma 4's tool calls
+
 ## [0.0.6] - 2026-10-17
 
 ### Changed

@@ -58,6 +58,9 @@ Mixture-of-Experts model it keeps part of its expert weights in RAM (`offgrid.ch
 set for you); on an RX 9070 XT it runs at about 37 tokens/s with a 32k context. Models from earlier versions
 (Qwen3 0.6B / 1.7B / 4B, Qwen3-Coder 30B) stay listed under *Choose models one by one* while downloaded.
 
+*Choose models one by one* also offers **Gemma 4 E4B** (4.6 GB, for 8 GB GPUs), an alternative to
+Standard's Qwen3.5 4B: as good on our agent benchmark and faster.
+
 Any other GGUF model works too (*Use a GGUF file for chat* / *for code completion*).
 
 ## Requirements

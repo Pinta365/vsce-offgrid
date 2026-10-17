@@ -4,7 +4,7 @@
   "description": "Code completion and chat with local models. No account, no cloud: offgrid runs the models on your GPU or CPU.",
   "publisher": "Pinta365",
   "version": "0.0.6",
-  "offgridServer": "0.4.1",
+  "offgridServer": "0.4.2",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.104.0"
