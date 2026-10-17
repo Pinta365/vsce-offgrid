@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-10-17
+
 ### Added
 - Tiny setup (Qwen3 0.6B chat, Qwen2.5-Coder 0.5B code completion, ~1.1 GB) for machines without a
   dedicated GPU or with less than 6 GB; recommended there instead of Small
