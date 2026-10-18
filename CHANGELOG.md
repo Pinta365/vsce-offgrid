@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-10-18
+
 ### Changed
 - Bundles offgrid 0.4.4 (documentation only)
 
