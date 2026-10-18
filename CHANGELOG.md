@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Bundles offgrid 0.4.4 (documentation only)
+
 ### Documentation
 - Windows: Smart App Control blocks the unsigned server; how to run the extension anyway
 
