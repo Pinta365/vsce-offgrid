@@ -71,6 +71,12 @@ Any other GGUF model works too (*Use a GGUF file for chat* / *for code completio
 
 ## Known limitations
 
+- **Windows: Smart App Control blocks the server.** offgrid's Windows binaries aren't code-signed yet,
+  and Windows 11's Smart App Control (on by default on clean installs) blocks unsigned programs; the
+  extension then says "Windows blocked offgrid-server". There are no per-app exceptions: turn it off
+  under Windows Security → App & browser control → Smart App Control settings (since the April 2026
+  Windows update it can be turned back on later). Machines with Smart App Control off or in evaluation
+  mode aren't affected.
 - Use **Local** chat sessions. Copilot CLI sessions send a much larger built-in prompt (instructions
   and tools) than local models' contexts hold, so they stop with "No response was returned" before
   reaching the model.

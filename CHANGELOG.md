@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Documentation
+- Windows: Smart App Control blocks the unsigned server; how to run the extension anyway
+
 ## [0.0.8] - 2026-10-18
 
 ### Changed
