@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-10-18
+
 ### Changed
 - Bundles offgrid 0.4.3: the Windows binaries carry version information (product, version, description),
   in preparation for code signing
