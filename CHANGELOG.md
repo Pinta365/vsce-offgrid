@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- Bundles offgrid 0.4.3: the Windows binaries carry version information (product, version, description),
+  in preparation for code signing
+
 ## [0.0.7] - 2026-10-17
 
 ### Added
